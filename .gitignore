@@ -1,0 +1,4 @@
+.env
+*.env
+last_id.txt
+arxiv_lancedb/
