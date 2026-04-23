@@ -89,7 +89,7 @@ display(Markdown(result['final_answer']))
 processor.visualize(result['debug_data'])
 ```
 
-
+```Mermaid
 graph TD
     %% Определение узлов
     Start((START))
@@ -130,4 +130,4 @@ graph TD
     style OtherHandler fill:#ffebee,stroke:#c62828,stroke-width:2px
     style Summarizer fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     style QA fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    
+```
