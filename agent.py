@@ -5,7 +5,7 @@ from typing import List, Dict, Any, TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from abc import ABC, abstractmethod
 from langsmith import Client as LangSmithClient
-
+import ast
 ls_client = LangSmithClient()
 class AgentState(TypedDict):
     query: str
@@ -15,6 +15,7 @@ class AgentState(TypedDict):
     article_chunks: Dict[str, Any] # Те самые чанки с перекрытиями
     final_answer: str
     debug_data: dict
+    critic_notes: List[str]
 
 class BaseRetriever(ABC):
     @abstractmethod
@@ -105,6 +106,8 @@ class ArxivAgent:
     def classifier_node(self, state: AgentState):
         p = self._format_node_chat('classifier', {"query": state['query']})
         res = self.llm.generate([p], {"max_tokens": 10, "temperature": 0})[0].strip().upper()
+        if not res: 
+            return {"intent": "other"}
         first_word = res.split()[0].rstrip('.,!?:')
         
         if first_word == "YES":
@@ -164,16 +167,21 @@ class ArxivAgent:
         if not db_data: 
             return {"final_answer": "Ошибка: текст статьи не найден в базе."}
         title, raw_sections, pdf_url = db_data 
+
+        sections = raw_sections 
         if isinstance(raw_sections, str):
-            try: 
-                sections_dict = json.loads(raw_sections)
-            except: 
-                sections_dict = {"Main Text": raw_sections}
-        else:
-            sections_dict = raw_sections
-        if not sections_dict:
+            try:
+                sections = json.loads(raw_sections)
+            except json.JSONDecodeError:
+                try:
+                    sections = ast.literal_eval(raw_sections)
+                except Exception as e:
+                    print(f"[ERROR] Failed to parse sections: {e}")
+                    sections = {"Main": raw_sections}
+        print(f"[DEBUG] Parsed sections: {list(sections.keys()) if isinstance(sections, dict) else 'Not a dict'}")
+        if not sections:
             return {"final_answer": f"Для статьи '{title}' нет доступных разделов."}
-        clean_sections = self.processor.process(sections_dict, show_report=False)
+        clean_sections = self.processor.process(sections, show_report=False)
         overlap_data = self.processor.create_overlap_dict(clean_sections)
         
         report, chunk_summaries_dict = self.sum_pipeline.run(
@@ -219,7 +227,7 @@ class ArxivAgent:
 
         if not notes:
             print("[CRITIC] Ошибок не найдено.")
-            return {"final_answer": summary}
+            return {"final_answer": summary, "critic_notes": []}
         
         # 2. ШАГ: Коррекция (Используем ключ 'critic_correction')
         print(f"[CRITIC] Найдено несоответствий: {len(notes)}. Исправление отчета...")
@@ -230,7 +238,10 @@ class ArxivAgent:
         
         corrected_summary = self.llm.generate([correction_p], {"max_tokens": 2500, "temperature": 0})[0]
         
-        return {"final_answer": corrected_summary}
+        return {
+            "final_answer": corrected_summary,
+            "critic_notes": notes 
+        }
 
     def _fetch(self, aid):
         with psycopg2.connect(**self.db_params) as conn:
