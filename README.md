@@ -120,56 +120,79 @@ graph TD
 
 ```mermaid
 graph TD
-    %% Основные пути
-    Start((START)) --> Classifier{Classifier}
+    %% Точка входа
+    Start((START)) --> Classifier{Intent?}
 
-    subgraph "QA Strategy (Multi-Source RAG)"
+    %% ВЕТКА QA
+    subgraph QA_Path [Strategy: RAG Response]
         direction TB
-        Rewriter --> LanceDB[(LanceDB)]
-        LanceDB --> FoundChunks[Found Top-K Chunks]
-        FoundChunks --> Deduplicate[Deduplication by Chunk ID]
-        Deduplicate --> MergeChunks[Merge Unique Chunks into Single Context]
-        MergeChunks --> QA_LLM[QA LLM Node]
-    end
-
-    subgraph "Summarization Strategy (Map-Reduce + Critic)"
-        direction TB
-        Postgres[(PostgreSQL)] --> FetchFullText[Fetch Full Article JSON/Dict]
-        FetchFullText --> Processor[Article Processor: Merge & Split]
+        Rewriter[Query Rewriter<br/><i>Gen 5 Queries</i>]
+        Search[Multi-Search<br/><i>LanceDB</i>]
         
-        subgraph "Map-Reduce with Overlaps"
-            Processor --> Chunk1[Chunk 1 + Overlaps]
-            Processor --> Chunk2[Chunk 2 + Overlaps]
-            Processor --> ChunkN[Chunk N + Overlaps]
-            
-            Chunk1 --> Map1[Map Summarizer]
-            Chunk2 --> Map2[Map Summarizer]
-            ChunkN --> MapN[Map Summarizer]
-            
-            Map1 & Map2 & MapN --> Reduce[Reduce: Final Synthesis]
+        subgraph QA_Fusion [Context Consolidation]
+            C1[Chunk A]
+            C2[Chunk B]
+            C3[Chunk C]
+            Deduplicate[<b>Deduplication</b><br/>by ID/Text]
+            Merge[<b>Final Context</b><br/>Merged Chunks]
         end
 
-        subgraph "Critic Audit Loop"
-            Reduce --> CriticVerify[Critic: Chunk-by-Chunk Verification]
-            CriticVerify -->|Compare| Chunk1 & Chunk2 & ChunkN
-            CriticVerify -->|Found Errors| CriticCorrection[Critic: Global Correction]
-            CriticCorrection --> FinalReport[Final Corrected Report]
+        Rewriter --> Search
+        Search --> C1 & C2 & C3
+        C1 & C2 & C3 --> Deduplicate --> Merge
+        Merge --> QA_Node[QA Answer Node]
+    end
+
+    %% ВЕТКА SUMMARIZATION
+    subgraph Sum_Path [Strategy: Map-Reduce + Audit]
+        direction TB
+        DB[(PostgreSQL)] --> Processor[Article Processor]
+        
+        subgraph Chunks_With_Overlaps [Step 1: Data Preparation]
+            direction LR
+            P1[Past] -.-> M1[<b>Chunk 1</b>]
+            M1 -.-> F1[Future]
+            P2[Past] -.-> M2[<b>Chunk 2</b>]
+            M2 -.-> F2[Future]
+            
+            note[<i>Overlaps preserve<br/>context between sections</i>]
+        end
+
+        subgraph Map_Reduce_Phase [Step 2: Summarization]
+            direction TB
+            M1 --> Map1[Map]
+            M2 --> Map2[Map]
+            Map1 & Map2 --> Reduce[<b>Reduce</b><br/>Synthesis of Draft]
+        end
+
+        subgraph Critic_Audit [Step 3: Verification Loop]
+            direction TB
+            Reduce --> Draft[Draft Report]
+            
+            %% Линии аудита (контроль)
+            Draft --> Auditor{<b>Critic Node</b><br/>Fact Checker}
+            Auditor -.->|Cross-Check| M1
+            Auditor -.->|Cross-Check| M2
+            
+            Auditor -->|Found Errors| Correction[<b>Final Correction</b><br/>Fix Hallucinations]
+            Auditor -->|OK| Verified[Verified Report]
         end
     end
 
-    %% Связи между блоками
-    Classifier -->|Intent: NO| Rewriter
-    Classifier -->|Intent: YES| Postgres
-    
-    QA_LLM --> End((END))
-    Reduce -->|use_critic = False| End
-    FinalReport --> End
+    %% Финальные связи
+    Classifier -->|NO| Rewriter
+    Classifier -->|YES| DB
+
+    QA_Node --> End((END))
+    Verified --> End
+    Correction --> End
 
     %% Стилизация
     style Start fill:#f9f,stroke:#333
     style End fill:#f9f,stroke:#333
     style Classifier fill:#fff4dd,stroke:#d4a017
-    style QA_LLM fill:#e1f5fe,stroke:#01579b
-    style FinalReport fill:#e8f5e9,stroke:#2e7d32
-    style CriticVerify fill:#fff9c4,stroke:#fbc02d
+    style Critic_Audit fill:#f0f4ff,stroke:#01579b,stroke-dasharray: 5 5
+    style Chunks_With_Overlaps fill:#f1f8e9,stroke:#2e7d32
+    style Auditor fill:#ffeb3b,stroke:#fbc02d
+    style Deduplicate fill:#e1f5fe,stroke:#01579b
 ```
