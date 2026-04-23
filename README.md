@@ -127,7 +127,7 @@ graph TD
     style Other fill:#ffcdd2,stroke:#b71c1c,stroke-width:2px
     style LanceDB fill:#b3e5fc,stroke:#01579b,stroke-width:2px
     style PostgreSQL fill:#b3e5fc,stroke:#01579b,stroke-width:2px
-    style CriticCorrect fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
+    style CriticNode fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
     style MapReduce fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
 
     %% ================= ВХОД И РОУТИНГ =================
@@ -139,12 +139,18 @@ graph TD
     subgraph Information_Retrieval ["Information Retrieval"]
         direction TB
         Rewriter["Rewriter Node: Multi-Query Generation"]
-        LanceDB[("LanceDB: Vector Search")]
+        
+        subgraph Vector_Search ["Vector Search (LanceDB)"]
+            Q1["Query 1 -> 5 results"]
+            Q2["Query 2 -> 5 results"]
+            QN["Query N -> 5 results"]
+        end
+
         Dedup{"Deduplication Logic"}
         
         Classifier -->|"YES / NO"| Rewriter
-        Rewriter --> LanceDB
-        LanceDB --> Dedup
+        Rewriter --> Q1 & Q2 & QN
+        Q1 & Q2 & QN --> Dedup
         
         Dedup -->|"Intent: NO (QA)"| DocsQA["Unique Chunks List"]
         Dedup -->|"Intent: YES (Sum)"| TopDoc["Single Top Article ID"]
@@ -163,10 +169,7 @@ graph TD
     %% ================= ВЕТКА СУММАРИЗАЦИИ =================
     subgraph Summarization_Pipeline ["Summarization Pipeline"]
         direction TB
-        PostgreSQL[("PostgreSQL: Full Text")]
-        Parse["Parser: json.loads / ast.literal_eval"]
-        
-        TopDoc --> PostgreSQL --> Parse
+        PostgreSQL[("PostgreSQL: Fetch Parsed Sections")]
         
         subgraph Article_Processor ["Article Processor"]
             direction TB
@@ -174,13 +177,15 @@ graph TD
             Overlaps["Create Overlaps: Add Past & Future Context"]
             Merge --> Overlaps
         end
-        Parse --> Merge
+
+        TopDoc --> PostgreSQL
+        PostgreSQL -->|"Parsed Section Dict"| Merge
         
         subgraph Map_Reduce_Phase ["Map-Reduce Execution"]
             direction LR
-            C1["Chunk 1 + Context"] --> M1("Map Summarizer")
-            C2["Chunk 2 + Context"] --> M2("Map Summarizer")
-            CN["Chunk N + Context"] --> MN("Map Summarizer")
+            C1["Chunk 1 + Overlaps"] --> M1("Map Summarizer")
+            C2["Chunk 2 + Overlaps"] --> M2("Map Summarizer")
+            CN["Chunk N + Overlaps"] --> MN("Map Summarizer")
             
             M1 & M2 & MN --> Join["Concat Summaries"] --> Reduce("Reduce: Final Synthesis")
         end
@@ -190,12 +195,20 @@ graph TD
     %% ================= ВЕТКА КРИТИКА =================
     subgraph Critic_Audit_Loop ["Critic Audit Loop"]
         direction TB
-        Verify["Critic Verify: Compare Report vs EACH Chunk"]
+        Draft["Draft Summary Report"]
+        
+        subgraph Per_Chunk_Verification ["Per-Chunk Verification"]
+            Verify["Critic Verify: Parallel Audit"]
+        end
+
         CheckErrors{"Notes empty?"}
         CriticCorrect["Critic Correction: Fix Report using Notes"]
         
-        Reduce --> Verify
-        Overlaps -.->|"Original Text for Audit"| Verify 
+        Reduce --> Draft
+        Draft --> Verify
+        
+        %% Показываем, что оригинальные чанки подаются в критика поштучно
+        C1 & C2 & CN -.->|"Iterate Original Text"| Verify 
         
         Verify --> CheckErrors
         CheckErrors -->|"Yes: OK"| FinalOk["Keep Original Report"]
