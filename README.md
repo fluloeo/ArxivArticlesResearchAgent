@@ -89,45 +89,31 @@ display(Markdown(result['final_answer']))
 processor.visualize(result['debug_data'])
 ```
 
-```Mermaid
+```mermaid
 graph TD
-    %% Определение узлов
-    Start((START))
-    Classifier[<b>Classifier</b><br/>Определение намерения]
-    OtherHandler[<b>Other Handler</b><br/>Заглушка для оффтопа]
-    Rewriter[<b>Rewriter</b><br/>Генерация Multi-Query]
-    Retriever[<b>Retriever</b><br/>Поиск в LanceDB]
-    QA[<b>QA Node</b><br/>Точечный ответ RAG]
-    Summarizer[<b>Summarizer</b><br/>Map-Reduce отчет]
-    Critic[<b>Critic Node</b><br/>Верификация и коррекция]
-    End((END))
-
-    %% Логика графа
-    Start --> Classifier
+    Start((START)) --> Classifier{Classifier}
     
-    Classifier -->|Intent: OTHER| OtherHandler
-    Classifier -->|Intent: YES / NO| Rewriter
+    Classifier -->|Intent: OTHER| OtherHandler[Other Handler]
+    Classifier -->|Intent: YES / NO| Rewriter[Rewriter]
     
-    OtherHandler --> End
+    OtherHandler --> End((END))
     
-    Rewriter --> Retriever
+    Rewriter --> Retriever[Retriever]
     
-    Retriever -->|Intent: NO| QA
-    Retriever -->|Intent: YES| Summarizer
+    Retriever -->|Intent: NO| QA[QA Node]
+    Retriever -->|Intent: YES| Summarizer[Summarizer]
     
     QA --> End
     
-    Summarizer -->|use_critic = True| Critic
-    Summarizer -->|use_critic = False| End
+    Summarizer --> IsCritic{Use Critic?}
+    IsCritic -->|Yes| Critic[Critic Node]
+    IsCritic -->|No| End
     
     Critic --> End
 
-    %% Стилизация
-    style Start fill:#f9f,stroke:#333,stroke-width:2px
-    style End fill:#f9f,stroke:#333,stroke-width:2px
-    style Classifier fill:#fff4dd,stroke:#d4a017,stroke-width:2px
-    style Critic fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style OtherHandler fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style Summarizer fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style QA fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style Start fill:#f9f,stroke:#333
+    style End fill:#f9f,stroke:#333
+    style Classifier fill:#fff4dd,stroke:#d4a017
+    style Critic fill:#e1f5fe,stroke:#01579b
+    style OtherHandler fill:#ffebee,stroke:#c62828
 ```
