@@ -131,76 +131,75 @@ graph TD
     style MapReduce fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
 
     %% ================= ВХОД И РОУТИНГ =================
-    Start((User Query)) --> Classifier{<b>Classifier Node</b><br/>Parse Intent}
-    Classifier -->|OTHER| Other[<b>Other Node</b><br/>Return default message]
+    Start((User Query)) --> Classifier{"Classifier Node (Intent?)"}
+    Classifier -->|"OTHER"| Other["Other Node: Default Message"]
     Other --> End((END))
 
     %% ================= ПОИСКОВЫЙ БЛОК =================
-    subgraph Information Retrieval
+    subgraph Information_Retrieval ["Information Retrieval"]
         direction TB
-        Rewriter[<b>Rewriter Node</b><br/>Generate 3-5 sub-queries]
-        LanceDB[(<b>LanceDB</b><br/>Vector Search)]
-        Dedup{<b>Deduplication</b>}
+        Rewriter["Rewriter Node: Multi-Query Generation"]
+        LanceDB[("LanceDB: Vector Search")]
+        Dedup{"Deduplication Logic"}
         
-        Classifier -->|YES / NO| Rewriter
+        Classifier -->|"YES / NO"| Rewriter
         Rewriter --> LanceDB
         LanceDB --> Dedup
         
-        Dedup -->|Intent: NO<br/>Drop by Chunk ID| DocsQA[Unique Chunks List]
-        Dedup -->|Intent: YES<br/>Drop by Article ID| TopDoc[Single Top Article ID]
+        Dedup -->|"Intent: NO (QA)"| DocsQA["Unique Chunks List"]
+        Dedup -->|"Intent: YES (Sum)"| TopDoc["Single Top Article ID"]
     end
 
     %% ================= ВЕТКА QA =================
-    subgraph QA Pipeline
+    subgraph QA_Pipeline ["QA Pipeline"]
         direction TB
-        QAContext[Concat all chunks into one context]
-        QAGen[<b>QA Node (LLM)</b><br/>Generate Answer]
+        QAContext["Concat Chunks to Single Context"]
+        QAGen["QA Node: Answer Generation"]
         
         DocsQA --> QAContext --> QAGen
     end
     QAGen --> End
 
     %% ================= ВЕТКА СУММАРИЗАЦИИ =================
-    subgraph Summarization Pipeline
+    subgraph Summarization_Pipeline ["Summarization Pipeline"]
         direction TB
-        PostgreSQL[(<b>PostgreSQL</b><br/>Full Text)]
-        Parse[<b>Parser</b><br/>json.loads / ast.literal_eval]
+        PostgreSQL[("PostgreSQL: Full Text")]
+        Parse["Parser: json.loads / ast.literal_eval"]
         
         TopDoc --> PostgreSQL --> Parse
         
-        subgraph Article Processor
+        subgraph Article_Processor ["Article Processor"]
             direction TB
-            Merge[Merge chunks < min_tokens]
-            Overlaps[<b>Create Overlaps</b><br/>Add Past & Future Context]
+            Merge["Merge Chunks < min_tokens"]
+            Overlaps["Create Overlaps: Add Past & Future Context"]
             Merge --> Overlaps
         end
         Parse --> Merge
         
-        subgraph MapReduce [Map-Reduce Execution]
+        subgraph Map_Reduce_Phase ["Map-Reduce Execution"]
             direction LR
-            C1[Chunk 1<br/>+ Context] --> M1(Map LLM)
-            C2[Chunk 2<br/>+ Context] --> M2(Map LLM)
-            CN[Chunk N<br/>+ Context] --> MN(Map LLM)
+            C1["Chunk 1 + Context"] --> M1("Map Summarizer")
+            C2["Chunk 2 + Context"] --> M2("Map Summarizer")
+            CN["Chunk N + Context"] --> MN("Map Summarizer")
             
-            M1 & M2 & MN --> Join[Concat Summaries] --> Reduce(<b>Reduce LLM</b><br/>Final Report)
+            M1 & M2 & MN --> Join["Concat Summaries"] --> Reduce("Reduce: Final Synthesis")
         end
-        Overlaps --> MapReduce
+        Overlaps --> Map_Reduce_Phase
     end
 
     %% ================= ВЕТКА КРИТИКА =================
-    subgraph Critic Audit Loop
+    subgraph Critic_Audit_Loop ["Critic Audit Loop"]
         direction TB
-        Verify[<b>Critic Verify (LLM)</b><br/>Compare Report vs EACH Original Chunk]
-        CheckErrors{Notes empty?}
-        CriticCorrect[<b>Critic Correction (LLM)</b><br/>Fix Report using Notes]
+        Verify["Critic Verify: Compare Report vs EACH Chunk"]
+        CheckErrors{"Notes empty?"}
+        CriticCorrect["Critic Correction: Fix Report using Notes"]
         
         Reduce --> Verify
-        %% Пунктирная линия показывает, что Критик берет данные из Processor
-        Overlaps -.->|Original Text| Verify 
+        Overlaps -.->|"Original Text for Audit"| Verify 
         
         Verify --> CheckErrors
-        CheckErrors -->|Yes: OK| FinalOk[Keep Original Report]
-        CheckErrors -->|No: Found Errors| CriticCorrect
+        CheckErrors -->|"Yes: OK"| FinalOk["Keep Original Report"]
+        CheckErrors -->|"No: Errors Found"| CriticCorrect
     end
 
     FinalOk --> End
