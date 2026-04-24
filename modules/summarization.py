@@ -1,5 +1,6 @@
 import time
 import requests
+import json
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any, Union
 from langsmith import Client as LangSmithClient
@@ -23,7 +24,7 @@ class VLLMProvider(LLMProvider):
         self.params_factory = sampling_params_class
         self.model_name = model_name
         self.generations_log = []
-        
+
     @traceable(run_type="llm", name="vLLM_Generate")
     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
         if not prompts: return[]
@@ -43,47 +44,47 @@ class VLLMProvider(LLMProvider):
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(self.generations_log, f, ensure_ascii=False, indent=2)
 
-class MistralProvider(LLMProvider):
-    def __init__(self, api_key: str, model_name: str = "mistral-small-latest"):
-        self.api_key = api_key
-        self.model_name = model_name
-        self.url = "https://api.mistral.ai/v1/chat/completions"
+# class MistralProvider(LLMProvider):
+#     def __init__(self, api_key: str, model_name: str = "mistral-small-latest"):
+#         self.api_key = api_key
+#         self.model_name = model_name
+#         self.url = "https://api.mistral.ai/v1/chat/completions"
 
-    def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-        if not prompts:
-            return []
+#     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
+#         if not prompts:
+#             return []
 
-        results = []
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+#         results = []
+#         headers = {
+#             "Authorization": f"Bearer {self.api_key}",
+#             "Content-Type": "application/json",
+#             "Accept": "application/json"
+#         }
 
-        for prompt in prompts:
-            payload = {
-                "model": self.model_name,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": sampling_params.get("temperature", 0.7),
-                "top_p": sampling_params.get("top_p", 1.0),
-                "max_tokens": sampling_params.get("max_tokens", 1024),
-            }
+#         for prompt in prompts:
+#             payload = {
+#                 "model": self.model_name,
+#                 "messages": [{"role": "user", "content": prompt}],
+#                 "temperature": sampling_params.get("temperature", 0.7),
+#                 "top_p": sampling_params.get("top_p", 1.0),
+#                 "max_tokens": sampling_params.get("max_tokens", 1024),
+#             }
 
-            try:
-                response = requests.post(self.url, json=payload, headers=headers)
-                response.raise_for_status()
-                data = response.json()
+#             try:
+#                 response = requests.post(self.url, json=payload, headers=headers)
+#                 response.raise_for_status()
+#                 data = response.json()
                 
-                content = data['choices'][0]['message']['content']
-                results.append(content)
+#                 content = data['choices'][0]['message']['content']
+#                 results.append(content)
             
-                time.sleep(0.1) 
+#                 time.sleep(0.1) 
                 
-            except Exception as e:
-                print(f"Error calling Mistral API: {e}")
-                results.append("") # Или обработка ошибки по-другому
+#             except Exception as e:
+#                 print(f"Error calling Mistral API: {e}")
+#                 results.append("")
 
-        return results
+#         return results
 
 class OpenRouterProvider(LLMProvider):
     def __init__(self, api_key: str, model_name: str = "openai/gpt-oss-120b:free", use_reasoning: bool = True):
@@ -112,7 +113,6 @@ class OpenRouterProvider(LLMProvider):
 
         for prompt in prompts:
             try:
-                # Вызов API
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=[{"role": "user", "content": prompt}],
@@ -121,8 +121,6 @@ class OpenRouterProvider(LLMProvider):
                     top_p=sampling_params.get("top_p", 1.0),
                     extra_body=extra_body
                 )
-
-                # Получаем основной контент ответа
                 content = response.choices[0].message.content
                 
                 # По желанию: можно логгировать рассуждения, если они есть
@@ -161,7 +159,6 @@ class SummarizationPipeline:
             except Exception as e:
                 print(f"Failed to pull {val}: {e}. Falling back to local.")
         
-        # 2. Фолбэк на локальный промпт из YAML
         if key in self.local_prompts:
             return self.local_prompts[key]
             

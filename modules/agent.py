@@ -108,7 +108,7 @@ class ArxivAgent:
 
     def classifier_node(self, state: AgentState):
         p = self._format_node_chat('classifier', {"query": state['query']})
-        res = self.llm.generate([p], {"max_tokens": 10, "temperature": 0})[0].strip().upper()
+        res = self.llm.generate([p], {"max_tokens": 40, "temperature": 0})[0].strip().upper()
         if not res: 
             return {"intent": "other"}
         first_word = res.split()[0].rstrip('.,!?:')
