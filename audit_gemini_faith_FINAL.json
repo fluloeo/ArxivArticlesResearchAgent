@@ -1,0 +1,314 @@
+[
+  {
+    "article_id":"0711.0189",
+    "title":"a tutorial on spectral clustering",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the content, structure, and technical depth of the Input. It correctly identifies and defines the three graph Laplacians (L, L_sym, L_rw) using proper LaTeX notation, and accurately describes the spectral clustering algorithms, including the use of k-means and row normalization for L_sym. The report correctly links unnormalized spectral clustering to RatioCut and normalized variants to Ncut, and explains the theoretical justifications via graph partitioning, random walks, and perturbation theory—including the Davis-Kahan theorem and eigengap heuristic. All methodological claims (e.g., consistency issues with unnormalized clustering) are directly supported by the Input. No factual errors, hallucinations, or unsupported generalizations are present. Quantitative concepts and technical relationships are preserved with high fidelity."
+  },
+  {
+    "article_id":"0902.1721",
+    "title":"existence & regularity of weak solutions of degenerate parabolic pde models for the pricing of security derivatives",
+    "faithfulness_score":0.9,
+    "reason":"The response aligns well with the input in structure and technical content, accurately summarizing the problem of degenerate parabolic equations in Asian option pricing, the use of a constructive existence proof via a finite difference scheme, and the role of Gronwall inequality in establishing uniqueness. It correctly incorporates LaTeX notation (e.g., $\\frac{\\partial u}{\\partial t}$, $u_l(x,t)$, $u_r(x,t)$) and reflects methodological claims such as stability of difference quotients and weak convergence. The response accurately captures that no artificial boundary conditions are needed due to exact boundary determination and correctly identifies the weak solution formulation. All key technical elements—energy estimates, weak compactness, summation by parts, and the integral identity—are present and contextually accurate. There are no factual contradictions or hallucinated results, and quantitative fidelity is maintained in the absence of specific numerical values in the input. The only minor shortcoming is the omission of specific boundary condition cases (8.a, 8.b) in detail, but the general treatment is consistent."
+  },
+  {
+    "article_id":"1204.1851",
+    "title":"a probabilistic logic programming event calculus",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output provides a comprehensive and accurate synthesis of the Input, correctly identifying the research objective of developing Prob-EC as a probabilistic extension of Event Calculus for handling uncertainty in activity recognition. It accurately describes the methodology, including the integration with ProbLog, the use of probabilistic facts ($p :: f$), the introduction of negate1 and negate2 for probabilistic negation, and the inference process involving DNF and BDDs. The results are faithfully summarized, highlighting Prob-EC's superiority over Crisp-EC for LTAs with multiple initiations under 'smooth' and 'intermediate' noise, its vulnerability when many probabilistic conjuncts are involved (e.g., moving with 0.8^6 ≈ 0.262), and its robustness to spurious data. The conclusion correctly emphasizes Prob-EC as the first EC dialect to handle uncertain STA and notes the impact of ProbLog's independence assumption. All key technical terms, LaTeX-style expressions, and quantitative examples match the Input exactly, with no hallucinations or unsupported claims."
+  },
+  {
+    "article_id":"1208.4147",
+    "title":"generating ordered list of recommended items: a hybrid recommender system of microblog",
+    "faithfulness_score":1.0,
+    "reason":"The response aligns closely with the input in structure and content, accurately reflecting key technical components such as the user taxonomy (active, inactive, fake), the grading function with learned weights α₁ and α₂, and the use of indirect collaborative filtering with familiarity function fami(uj, uk). It correctly reports numerical results from the input: MAP@3 values for active (0.411), inactive (0.469), and fake (0.336) users, as well as the training parameters ωi = 1\/3 and β = 0.9. The LaTeX notation $grade(u_j, i_k) = \\alpha_1 \\cdot hot_k + \\alpha_2 \\cdot sim(u_j, i_k)$ is properly rendered and contextually accurate. Methodological claims—such as the higher influence of popularity on active users versus interest similarity on inactive users—are directly supported by the training results in the input. No hallucinations or factual contradictions are present, and all causal relationships are grounded in the provided text. Quantitative fidelity, technical notation, and methodological support are fully maintained."
+  },
+  {
+    "article_id":"1503.02656",
+    "title":"modeling and improving the energy performance of gps receivers for mobile applications",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's key numerical values, including the 20.9–23.1% energy savings, positioning accuracy figures (11.9m to 12.7m and 13.1m to 13.4m), and the 62% energy share of the tracking procedure. Technical notations such as $N$, $L$, $f$, GDOP, and the matrix expression $(A^T W A)^{-1}$ are correctly preserved and contextually used. Methodological claims—such as the linear relationship between energy consumption and $N \times L$, and the 5% GDOP tolerance in satellite selection—are directly supported by the Input. There are no factual contradictions or hallucinations; all causal relationships (e.g., selective tracking reduces energy with minimal accuracy loss) are grounded in the provided data. The summary comprehensively covers the energy model, experimental validation, and algorithmic contribution with high fidelity."
+  },
+  {
+    "article_id":"1511.08844",
+    "title":"an empirical study of open source software usability: the industrial perspective",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all key numerical values, including Cronbach's alpha (0.70–0.73), Pearson and Spearman correlation coefficients (e.g., 0.42, 0.51, 0.40), R² values (65.3%, 60.7%, 0.40), and the F-ratio (14.97), all with correct p-values (p < 0.05). Technical notations such as LaTeX-formatted equations and statistical terms (e.g., PLS, PCA, Eigenvalue-one criterion) are correctly used and contextually appropriate. Methodological claims—such as the positive impact of each usability factor on OSS usability—are directly supported by the Input's statistical results and hypothesis testing. There are no factual contradictions or hallucinated content; all conclusions are grounded in the provided data. The synthesis is comprehensive, precise, and maintains quantitative fidelity, technical accuracy, and logical consistency with the Input."
+  },
+  {
+    "article_id":"1511.09013",
+    "title":"an efficient bayesian papr reduction method for ofdm-based massive mimo systems",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all key numerical values (e.g., M=100, K=10, 84.4% and 49.2% boundary entries, PAPR reductions of 11 dB and 2 dB, MUI and OBR values of -73.6 dB and -70.5 dB), statistical metrics, and units. Technical notations such as LaTeX formulas (e.g., $s = \\mathbf{H}\\mathbf{T}^T\\mathbf{F}\\hat{\\mathbf{a}}$, $\\mathcal{O}(JI)$) and algorithm names (FITRA, GAMP, EM-TGM-GAMP) are correctly used and contextually appropriate. Methodological claims—such as the use of a hierarchical truncated Gaussian mixture prior to encourage quasi-constant magnitude solutions and the integration of GAMP for computational efficiency—are explicitly supported by the Input. There are no factual contradictions or hallucinated content; all causal relationships (e.g., faster convergence due to algorithm design, SER loss due to increased signal norm) are grounded in the Input. The summary is comprehensive, precise, and maintains quantitative and conceptual fidelity."
+  },
+  {
+    "article_id":"1511.09101",
+    "title":"popmine: tracking political opinion on the web",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all technical details, including the use of specific tools (e.g., Social-Bus, MongoDB, REST APIs), methodologies (e.g., Kalman Filter for trend estimation, L2-regularized Maximum Entropy classifier), and evaluation results (e.g., first place in RepLab 2013, top rankings in SemEval). Key quantitative and technical elements such as the sentiment indicators $S_{ratio} = \\log(\\frac{N_{positive}}{N_{negative}})$ and $S_{neg\\_share} = \\frac{N_{negative, i}}{\\sum_{j} N_{negative, j}}$ are correctly reproduced with proper LaTeX formatting. The causal relationships, such as the use of disambiguation to improve sentiment analysis accuracy, are explicitly supported by the Input. No hallucinations or factual contradictions are present, and the modular architecture, data sources, and system requirements are faithfully represented. The summary is comprehensive, technically precise, and maintains full quantitative and methodological fidelity."
+  },
+  {
+    "article_id":"1602.06439",
+    "title":"context-guided diffusion for label propagation on graphs",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately captures the research objective, methodology, results, and significance of the input paper with high fidelity. It correctly identifies the core problem of extending anisotropic diffusion to graphs using a geometric framework, and precisely describes the construction of the anisotropic graph Laplacian $L_D = \\\nabla^* D \\\nabla$ with positive definite diffusivity operator $D$, matching the mathematical formulation in the input. The explanation of the explicit Euler scheme $f_{t+\\\\delta} = f_t - \\\\delta L_D f_t$ and the Gaussian form of $q_{ij}$ aligns exactly with Equations 12 and 15. The two context-guided operators (smooth and local match) are correctly summarized, and the theoretical equivalence to isotropic diffusion under a new metric $\\\tilde{g}$ with $c(x)\\\tilde{g}(x) = g(x)D^{-1}(x)$ is faithfully reproduced from Proposition 1. The results section correctly reports evaluation on 11 datasets, performance rankings of A_nlin, A_S, A_LM over I and A_lin, the failure case on BCI due to poor initialization, and sub-quadratic computational complexity. All technical terms, LaTeX expressions, and numerical claims (e.g., ~40% error on BCI) are consistent with the input. No hallucinations or misrepresentations are present."
+  },
+  {
+    "article_id":"1805.09106",
+    "title":"transformed rank-1 lattices for high-dimensional approximation",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns closely with the Input, accurately summarizing the research objective, methodology, results, and significance. It correctly references key mathematical concepts such as the transformation $\\\\psi: (-1\/2, 1\/2)^d \\\to \\\\mathbb{R}^d$, the function spaces $H_{\\\text{mix}}^m$, and the use of rank-1 lattices. The error bounds, including the $O(N^{-m}(\\\\log N)^{(d-1)(m+1)})$ rate, are correctly stated and contextually placed. The discussion of parameter dependencies for algebraic and error function transformations matches the Input's derivation of sufficient conditions in Theorems 3.5 and 3.6. The mention of numerical validation, comparison with exact bounds, and integration with sparse FFTs and multiple lattices reflects the Input's experimental and algorithmic contributions. All technical terms and LaTeX expressions are used in context and match the source. There are no hallucinations or unsupported claims."
+  },
+  {
+    "article_id":"1805.10177",
+    "title":"a hyperbolicity-preserving discontinuous stochastic galerkin scheme for uncertain hyperbolic systems of equations",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's content, maintaining quantitative fidelity by correctly referencing convergence rates (e.g., (K_X+1)\/2, spectral convergence), numerical methods (e.g., Lax-Friedrichs, HLLE, SSP Runge-Kutta), and problem setups (e.g., uncertain Sod shock, Double Mach reflection). Technical notations like $R$, $\\theta$, and $K_\\Gamma$ are used appropriately with LaTeX formatting. Methodological claims—such as the hyperbolicity-preserving limiter relying on Theorem 3.8 and the efficiency of hDSG in low stochastic dimensions—are directly supported by the Input. There are no factual contradictions or hallucinations; all results, including the performance comparison with Stochastic Collocation and the necessity of the limiter in challenging test cases, are consistent with the Input. The synthesis is thorough and precisely aligned with the source material."
+  },
+  {
+    "article_id":"1806.03234",
+    "title":"accurate computation of conditional expectation for highly non-linear problems",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately captures the core concepts, methodology, and results from the Input. It correctly defines the conditioned expectation (CdE) and presents the key formula (15) in LaTeX, matching the Input's derivation in Theorem 3 and Corollary 7. The methodology section reflects the variational approach and limiting process using simple functions. Numerical results are faithfully represented: the cubic forward model, comparison with Kalman and polynomial filters, bimodal case, and the two-parameter example with the posterior mean [-0.43, 0.43]^T are all consistent with the Input's figures and parameters (e.g., error variance 0.4, standard normal priors). The significance of positive semi-definite covariance via CdE (Lemma 9) is correctly emphasized. No hallucinations or misstatements are present; all technical terms (PCE, CE, CdE, affine approximation) are used in context. Quantitative values and causal relationships are preserved with high fidelity."
+  },
+  {
+    "article_id":"1903.08606",
+    "title":"single-step options for adversary driving",
+    "faithfulness_score":0.5,
+    "reason":"The Actual Output misstates the collision rate of the primitive agent as 6.5%, while the Input reports it as higher than 4% at the end of training and implies a final testing rate consistent with the 70.1% success rate (implying a significantly higher collision rate than 6.5%). This quantitative inaccuracy violates Evaluation Step 1 (Quantitative Fidelity). Additionally, the Input does not provide the primitive agent's exact final collision rate, so asserting 6.5% is a hallucination. While LaTeX formulas and methodological claims are generally well-contextualized, this major numerical error undermines trust in the results summary. Other metrics (e.g., 2.1% for the proposed method, 14.2% for P1, 85.0% success rate) are correctly reported. The explanation of the method and its significance aligns well with the Input, but the false precision on a key metric constitutes a major error."
+  },
+  {
+    "article_id":"2002.00813",
+    "title":"faster fully dynamic transitive closure in practice",
+    "faithfulness_score":0.6,
+    "reason":"The Actual Output aligns well with the Input in terms of core concepts, algorithmic variants (SV, SVA, SVC), and experimental findings, such as the strong performance of SV(1) and the use of supportive vertices. However, it fails to preserve several key numerical values and statistical metrics from the Input. For instance, the Input specifies conditional lower bounds of Ω(n^1.406) [39] and mentions speedups up to a factor of 54 for SVC(25, 10k), which are omitted or inaccurately summarized. The Input also notes that BiBFS was up to 240 times faster than static methods in some cases, a quantitative detail missing in the Output. Furthermore, the Output incorrectly generalizes that 'static algorithms were found to be highly competitive' in prior studies, while the Input clarifies they were competitive only on dense random graphs or high query ratios—this misrepresents a causal and factual nuance. Technical notations like $R^+(v)$ and $R^-(v)$ are correctly used, but the omission of specific complexity bounds (e.g., O(n·m) for decremental algorithms) and exact experimental parameters (e.g., c = 10k, z = 25\/50) reduces quantitative fidelity. These omissions and slight overgeneralizations violate Evaluation Steps 1 and 3."
+  },
+  {
+    "article_id":"2005.01917",
+    "title":"learning selection strategies in buchberger's algorithm",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns closely with the Input across all evaluation steps. It accurately preserves quantitative metrics such as the 22% to 37% reduction in polynomial additions and the 19% to 46% reduction in variance, matching the data in Table 3. Technical notations like $s_t = (G_t, P_t)$, $E[\\sum r_t]$, and 'grevlex' are correctly used in context. Methodological claims—such as the use of PPO, GAE, and the 'Degree' value function—are explicitly supported by the Input. The causal relationship between the learned policy and improved performance is well-substantiated, with specific insights like the 'TrueDegree' heuristic directly traceable to Section 5.1. There are no factual contradictions or hallucinations; all claims about generalization, binomial restrictions, and experimental setup are grounded in the Input. The summary is comprehensive, precise, and maintains fidelity to the original content."
+  },
+  {
+    "article_id":"2010.1281",
+    "title":"autoregressive score matching",
+    "faithfulness_score":1.0,
+    "reason":"The response demonstrates strong alignment with the input. It accurately describes the Composite Score Matching (CSM) divergence, correctly references the decomposition via the chain rule, and explains the use of univariate conditional scores, matching the Input's methodology. Key technical terms like AR-CSM, conditional scores, and Fisher divergence are used in context. The discussion of scalability advantages over SM, SSM, and DSM aligns with the Input's experimental results, including the constant training time with increasing dimensionality and comparison on MNIST and CelebA. The report correctly notes the use of Langevin dynamics for sampling and the application to VAEs with implicit encoders. All LaTeX formulas (e.g., $J_{CSM}$) are contextually accurate. No hallucinations or unsupported claims are present, and quantitative claims (e.g., performance on 200 dimensions) are consistent with the Input."
+  },
+  {
+    "article_id":"2010.12810",
+    "title":"autoregressive score matching",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all key technical details, including the definition of Composite Score Matching (CSM) as a divergence based on univariate conditional scores, the use of autoregressive architectures (MADE, PixelCNN++) for context vectors, and the deterministic nature of the CSM objective. The LaTeX notation for the CSM objective is correctly rendered and contextually appropriate. Methodological claims—such as CSM avoiding the Hessian trace computation, outperforming SM in scalability (memory errors at ~200 dimensions), and surpassing SSM and DSM in convergence due to lower variance and no noise bias—are all explicitly supported in the Input. Factual metrics like constant training time for CSM versus linear degradation for SM, use of AIS for likelihood estimation, and FID\/AUROC comparisons are faithfully represented. No hallucinations or contradictions are present, and the summary correctly reflects the experimental results on MNIST, CIFAR-10, and CelebA. The response maintains quantitative fidelity and correctly interprets causal relationships, such as the link between model design and improved training efficiency."
+  },
+  {
+    "article_id":"2111.08462",
+    "title":"towards lightweight controllable audio synthesis with conditional implicit neural representations",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately reflects the research objective of evaluating PCINRs for audio synthesis, correctly identifying the gap in literature and the hypothesis around faster convergence and better reconstruction. Technical notations such as $f_i: \\mathbb{R}^1 \\to \\mathbb{R}^1$, $\\Delta$, and $\\pi$-GAN are properly used in context, and LaTeX formatting is preserved. Methodological claims—such as the use of FiLM conditioning, autodecoder setup, AdaBelief optimizer, and composite MSE loss including derivative terms—are all explicitly supported by the Input. The results section faithfully reports that PCINRs outperform TCNNs in MSE but not in perceptual metrics, highlights the noise artifacts in uniform datasets, and correctly attributes this to stationary points and hyperparameter sensitivity. Mitigation strategies like weight regularization and reduced depth are accurately mentioned. No factual contradictions or hallucinations are present, and all datasets, architectures, and evaluation metrics (CDPAM, STFT MSE) are correctly represented. Quantitative fidelity is maintained, with correct parameter counts (~10^6), dataset sizes (1024 items), and training details (5k epochs, Bayesian hyperparameter search)."
+  },
+  {
+    "article_id":"2111.11629",
+    "title":"uncertainty-aware deep co-training for semi-supervised medical image segmentation",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately reproduces key numerical results (e.g., 2.29% DSC improvement on ACDC, 12.94% DSC gain over full supervision on SCGM, 95.45% DSC on Spleen), correctly references datasets (ACDC, SCGM, Spleen) and metrics (DSC, HD), and maintains precise technical notations such as LaTeX formulas for predictive entropy and loss components. Methodological claims—like the dual use of uncertainty in supervised (focusing on high uncertainty) and unsupervised (focusing on low uncertainty) stages, the use of Monte Carlo Dropout, and the introduction of uncertainty at epoch 0 and epoch 20—are explicitly supported in the Input. There are no hallucinations or contradictions; all comparisons to baselines (e.g., Deep Co-training, full supervision) and ablation results (2.23% and 1.39% improvements) are faithfully reported. The structure and content reflect a comprehensive and accurate synthesis of the Input."
+  },
+  {
+    "article_id":"2306.09751",
+    "title":"two arbitrary-order constraint-preserving schemes for the yang--mills equations on polyhedral meshes",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's key elements, including the two schemes (N_h^1 and N_h^2) for handling nonlinear terms in the Yang-Mills equations, their theoretical properties (constraint preservation, energy dissipation), and the use of the serendipity Discrete de Rham (SDDR) complex with Lie algebra tensorization. It correctly reports the expected convergence rate of O(h^{k+1}) and confirms constraint preservation up to machine precision (10^{-15} to 10^{-10}), aligning with Table 2. The discussion of runtime differences (e.g., 10% slower for N_h^1 on tetrahedral meshes at k=2) matches the Input's analysis. Technical notations like O(h^{k+1}), Lie algebra-valued spaces, and discrete operators (e.g., ⋆[·,·]) are used appropriately. Methodological claims about stability and implementation (static condensation, Newton method) are directly supported by the Input. No factual contradictions or hallucinations are present."
+  },
+  {
+    "article_id":"2306.09988",
+    "title":"a numerically robust and stable time-space pseudospectral approach for generalized burgers-fisher equation",
+    "faithfulness_score":1.0,
+    "reason":"The response accurately reflects the structure and content of the input, maintaining quantitative fidelity by correctly referencing parameters such as σ₁, σ₂, δ, and grid points N, and preserving technical notations like the gBF equation in LaTeX format. It correctly describes the methodology involving Chebyshev pseudospectral discretization in both space and time, the use of spectral differentiation matrices, and the Newton-Raphson solver. The causal relationship between the proposed method and improved accuracy with fewer grid points is explicitly supported in the input. No hallucinations or factual contradictions are present; all cited methods (e.g., BSQI, SDD) and references to prior work align with the input. The stability analysis and transformation to homogeneous boundary conditions are also accurately summarized."
+  },
+  {
+    "article_id":"2306.15083",
+    "title":"balanced filtering via disclosure-controlled proxies",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's core concepts, including the (α, β) proxy framework, the use of convex hulls for balance, disclosure constraints, and the two-player game formulation for learning splits. It correctly references key components such as Algorithms 3 and 4, the QP proxy method, and the experimental datasets (Adult, Marketing, Communities). Technical notations like $\\alpha$-disclosive, $\\beta$-approximate balance, and $\\|qA - U\\|_2$ are used appropriately. The summary of results aligns with the Input, noting the (α, β) proxy's in-sample Pareto dominance and weaker generalization due to small proxy group sizes, as explained in Theorem 4. No factual contradictions or hallucinations are present, and causal claims are grounded in the Input. Quantitative fidelity is maintained with correct parameter interpretations and methodological descriptions."
+  },
+  {
+    "article_id":"2312.14259",
+    "title":"multi-agent bandit learning through heterogeneous action erasure channels",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns well with the Input in terms of technical content, methodology, and results. It correctly presents the BatchSP2 algorithm, its repetition mechanism with α_m = ⌈4 log T \/ log(1\/ϵ_m)⌉ − 1, and the scheduling strategy that minimizes batch completion time. The regret bounds in Theorem 1 and Theorem 2 are accurately summarized, including the gap-dependent and gap-independent forms, and the recovery of Õ(√KTM) in the no-erasure case. LaTeX notation is properly used (e.g., $\\alpha_m$, $\\epsilon_m$), and complexity-related claims are consistent. The empirical results correctly reflect the comparison with baselines and the impact of channel heterogeneity. No hallucinations or factual contradictions are present; all key elements from the Input—problem setting, algorithm design, theoretical analysis, and experimental validation—are faithfully represented with quantitative fidelity."
+  },
+  {
+    "article_id":"2401.00896",
+    "title":"trailblazer: trajectory control for diffusion-based video generation",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all technical notations, including LaTeX formulas ($A_s$, $d = |i-j|\/N_F$, $w = 1 - (N_C - (T - t)) \/ N_C$) and correctly references model components (ZeroScope, mIoU, FVD) and datasets (AnimalKingdom) with consistent numerical context. Methodological claims—such as editing spatial and temporal attention maps during initial denoising steps, the use of keyframed bounding boxes, and scene compositing with annealing weights—are explicitly supported by the Input. Causal relationships, like the link between bbox size changes and perspective effects or temporal attention manipulation and motion coherence, are justified by observations in the Input (e.g., Fig. 2, Fig. 6). There are no factual contradictions or hallucinations; all comparisons to T2V-Zero and Peekaboo, including quantitative metrics and qualitative behaviors (e.g., subject orientation, background quality), are faithfully represented. The summary is comprehensive, precise, and maintains quantitative fidelity throughout."
+  },
+  {
+    "article_id":"2401.06866",
+    "title":"health-llm: large language models for health prediction via wearable sensor data",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns well with the Input, accurately summarizing key aspects of the study including the Health-LLM framework, the 12 evaluated LLMs, the four-stage methodology (zero-shot, few-shot with CoT\/SC, fine-tuning, and ablation), and the use of natural language string for time-series encoding. It correctly reports that HealthAlpaca outperformed larger models in 8 out of 10 tasks and that context enhancement improved performance by up to 23.8%, matching the Input exactly. The mention of N=5 for SC prompting and the distinction between full fine-tuning and LoRA-based PEFT are technically precise. No hallucinations or factual contradictions are present, and all methodological claims are supported by the Input. The summary omits minor details like specific dataset demographics or t-test tables but retains all core quantitative and qualitative findings."
+  },
+  {
+    "article_id":"2402.11565",
+    "title":"continual learning on graphs: challenges, solutions, and opportunities",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output provides a comprehensive and accurate synthesis of the Input, maintaining strong alignment across all evaluation steps. It correctly preserves all technical notations, including LaTeX formulas like $S = \\{G_1, G_2, ..., G_T\\}$, $\\mathcal{L}_{t+1}(\\theta)$, and $M_p \\in \\mathbb{R}^{T \\times T}$, and consistently uses CGL terminology (e.g., task-IL, domain-IL, class-IL, inter-task edges). The methodological claims are fully supported by the Input: the tripartite categorization of methods (regularization, replay, isolation) mirrors the source, and specific techniques like topology-aware regularization in TWP, sparsified subgraphs in SSM, and topological embeddings in PDGNNs-TEM are accurately described. The trade-off between effectiveness and space complexity, concept drift due to inter-task edges, and the role of benchmarks like CGLB are all correctly analyzed without hallucination or overgeneralization. No factual contradictions or inverted results are present."
+  },
+  {
+    "article_id":"2403.02816",
+    "title":"efficient simulation of complex ginzburg--landau equations using high-order exponential-type methods",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's research objective, methodology, and results, maintaining quantitative fidelity by correctly referencing key parameters (e.g., α₁, β₁), methods (e.g., split4, if4), and performance outcomes. It properly uses technical notations like LaTeX for equations ($e^{\\tau K}$) and correctly describes the Kronecker-sum structure and tensor-based computations. Methodological claims are well-supported: it correctly states that split4 is most efficient for cubic nonlinearities with analytical solutions, while if4 outperforms for cubic-quintic and coupled cases where nonlinear flows require numerical approximation. No factual contradictions or hallucinations are present, and all causal relationships (e.g., efficiency depending on nonlinearity complexity) are directly backed by the Input. The summary is concise and aligned with the evaluation steps."
+  },
+  {
+    "article_id":"2403.04932",
+    "title":"divide and conquer: high-resolution industrial anomaly detection via memory efficient tiled ensemble",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's core contributions, methodology, and results with high fidelity. It correctly describes the tiled ensemble method, including the mathematical notation for image tiling ($X \\in \\mathbb{R}^{c \\times h \\times w}$), dedicated models $M_{i,j}$, merging via averaging, and the final score computation $s = \\frac{1}{|T|} \\sum_{i,j} s_{i,j}$, satisfying technical notation requirements. All key experimental details are preserved: the four architectures (Padim, Patchcore, Reverse Distillation, Fastflow), datasets (MVTec AD, VisA), evaluation setups (SM256, SM512, ENS9, ENS4, ST9, ST4), and performance trends—especially ENS9's superiority on small anomalies in VisA. The trade-off in latency and throughput is correctly noted, along with the constant GPU memory usage comparable to a 256x256 model. No hallucinations or factual contradictions are present, and causal claims (e.g., overlapping tiles improving performance) are well-supported by the Input. Quantitative fidelity is maintained across all referenced metrics and configurations."
+  },
+  {
+    "article_id":"2404.03037",
+    "title":"model-based reinforcement learning for parameterized action spaces",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all key technical details, including the DLPA framework's components (H-step loss, separate reward predictors, PAMDP-specific MPPI), the three inference architectures, and the empirical results such as 30× sample efficiency and superior performance in large action spaces. Technical notations like LaTeX formulas ($T_\\phi$, $\\mathcal{N}(\\mu_k, \\Sigma_k)$, $L(\\phi)$) are correctly used and contextually appropriate. Methodological claims—such as the benefits of model-based RL in PAMDPs, the necessity of separate reward predictors, and the theoretical performance bound—are all explicitly supported by the Input. There are no factual contradictions, hallucinations, or inverted results. The summary effectively captures the novelty, methodology, results, and significance of the work with high fidelity."
+  },
+  {
+    "article_id":"2404.04404",
+    "title":"a ground mobile robot for autonomous terrestrial laser scanning-based field phenotyping",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns closely with the Input across all evaluation steps. Quantitative values such as cross-track error (3 cm), location errors (0.565 cm, 0.376 cm), heading errors (0.035°, <0.005°), Hausdorff distance (1.25 cm), and performance improvements (7.8%, 33%) are accurately reported. LaTeX formulas like $G=(V,E)$ and $\\min \\sum_{i,j} w_{ij}x_{ij}$ are correctly used in context. Methodological claims about the greedy algorithm, TSP formulation with subtour elimination, slab-based ray casting, and C2C registration are directly supported by the Input. No hallucinations or unsupported assertions are present, and all technical terms (e.g., AABB, RTK-GNSS, pure pursuit) are used appropriately. The summary captures the core contributions and results with high fidelity."
+  },
+  {
+    "article_id":"2404.04544",
+    "title":"beyondscene: higher-resolution human-centric scene generation with pretrained diffusion",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately reflects the research objective of overcoming token and resolution limits in T2I models for high-resolution human-centric scenes, correctly citing constraints like 77 tokens and training at 1024×1024. The methodology section precisely describes the two-stage process: detailed base image generation with instance segmentation, inpainting, and CLAHE-based tone normalization, followed by instance-aware hierarchical enlargement. Key technical innovations are faithfully represented with correct LaTeX notation (e.g., $C_{i,j}$, $\\epsilon_{i,j} \\sim U(0, 1)$) and accurate descriptions of high frequency-injected forward diffusion and adaptive joint diffusion, including adaptive conditioning based on instance presence and adaptive stride with $s_{inst}$ and $s_{back}$. Quantitative results are correctly reported: evaluation on CrowdCaption with 100 images per aspect ratio, use of MLLM-based VIEScore and naturalness metrics (0–10 scale), and outperformance across resolutions up to 4096×4096, with mention of 8192×8192 generation. The user study with 101 participants and 12,120 responses is accurately summarized. All methodological claims are directly supported by the Input, with no hallucinations or misrepresentations."
+  },
+  {
+    "article_id":"2404.09533",
+    "title":"witunet: a u-shaped architecture integrating cnn and transformer for improved feature alignment and local information fusion",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all quantitative metrics (PSNR: 33.2851, SSIM: 0.9187, RMSE: 8.8434) and correctly references the Mayo Clinic dataset and patient L506 for testing. Technical notations such as LaTeX for mathematical expressions (e.g., $O(M^2HWC)$, $x^{k,v}$) are properly used and contextually accurate. Methodological claims about the integration of CNNs and Transformers, the role of LiPe and W-MSA, and the function of nested dense blocks are all explicitly supported by the Input. There are no factual contradictions or hallucinated content; causal relationships, such as the improved performance due to architectural components, are justified by ablation studies and comparative results. The summary is comprehensive, precise, and fully grounded in the source material."
+  },
+  {
+    "article_id":"2404.14025",
+    "title":"dhrnet: a dual-path hierarchical relation network for multi-person pose estimation",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all key technical details, including the model architecture (DHRNet, DIM, CIM, CJM, ADFM), mathematical notations (e.g., $X \\in \\mathbb{R}^{3 \\times H \\times W}$, $F_{inst}$, $F_{joint}$, $F_{I \\to J}$, $F_{J \\to I}$, $Att_{joint}$, and the loss function $\\mathcal{L} = \\mathcal{L}_{joint} + \\alpha \\mathcal{L}_{inst}$), and methodological claims. The quantitative results are faithfully reported: 0.3% AP improvement on COCO, 71.5% AP on CrowdPose, and 1.0%\/0.8% gains on OCHuman. The causal relationships—such as the dual-path design enabling complementary interaction modeling and leading to improved performance in occluded and crowded scenes—are directly supported by the Input. There are no hallucinations, contradictions, or unsupported generalizations. The structure and content reflect a comprehensive and precise distillation of the Input."
+  },
+  {
+    "article_id":"2404.14653",
+    "title":"machine vision-based assessment of fall color changes and its relationship with leaf nitrogen concentration",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns well with the Input across all evaluation steps. It accurately reports numerical values such as the R² of 0.72 for the gradient boost model, processing times (0.39 sec\/tree and 2.41 sec\/tree), and the temporal window of 29–31 weeks post-full bloom. Technical notations like the Yellowness Index formula ($YI = \\frac{c_y - c_g}{c_y + c_g}$) are correctly presented in LaTeX. Methodological claims about the superiority of the Gradient Boost classifier over K-means are explicitly supported by the Input, including accuracy and speed comparisons. There are no factual contradictions or hallucinations; causal relationships (e.g., higher nitrogen delaying senescence) are consistent with the source. The summary correctly notes the weak overall correlation (r from -0.64 to 0.16) and the significance of specific time windows identified via ANOVA and Tukey HSD tests. All key findings and limitations are faithfully represented."
+  },
+  {
+    "article_id":"2404.16122",
+    "title":"generalized optimization modulo theories",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns closely with the Input, accurately summarizing the core contributions: the formalization of GOMT with partial orders, the abstract calculus with its derivation rules (F-Split, F-Sat, F-Close), and the correctness theorems (soundness, termination, completeness). It correctly uses technical notations like LaTeX for mathematical expressions (e.g., $GO := \\langle t, \\prec, \\phi \\rangle$) and references key concepts such as well-foundedness and progressive strategies as defined in the Input. All methodological claims—such as the unification of multi-objective problems via partial orders and the instantiation of search strategies—are explicitly supported by the Input. There are no factual contradictions, hallucinations, or unsupported causal assertions. Quantitative fidelity is maintained in the description of theorems and definitions, and all technical content is contextually accurate."
+  },
+  {
+    "article_id":"2404.17421",
+    "title":"automata-theoretic characterisations of branching-time temporal logics",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output provides a comprehensive and accurate synthesis of the Input, maintaining quantitative fidelity by correctly referencing key logics (CCTL*, CCDL, MCL), automata classes (HGTA, HGTA_cf, HFTA), and technical constraints (counter-freeness, mutual-exclusion). It preserves technical notations such as LaTeX formulas (e.g., $\\langle A \\rangle \\psi$) and correctly describes complex concepts like the linearization of automata and the role of NWA_f. Methodological claims, such as the necessity of both counter-freeness and mutual-exclusion for characterizing CCTL*, are explicitly supported in the Input and properly reflected. There are no factual contradictions or hallucinations; all assertions are grounded in the provided text, including the equivalence results and closure properties. The summary effectively distills the paper's contributions without overgeneralization."
+  },
+  {
+    "article_id":"2404.17611",
+    "title":"metasd: a unified framework for scalable downscaling of meteorological variables in diverse situations",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately preserves all key numerical values, including the 2.85 dB improvement in PSNR and the 84,365.53 reduction in AIC, and correctly references the metrics PSNR, MAE, and AIC as used in the Input. Technical notations such as LaTeX formulas for parameter updates ($ \\theta_i' = \\theta - \\alpha \\nabla_\\theta L_{T_i}(f_\\theta) $) are correctly implemented and contextually appropriate. Methodological claims—such as MetaSD’s use of a dual-loop optimization, the weighted loss to prevent meta-overfitting, and the mechanistic insight from PWCCA analysis—are all explicitly supported in the Input. The causal relationship between rapid adaptation in deep layers and generalization is well-substantiated by the Input's discussion of PWCCA scores. There are no factual contradictions or hallucinations; all datasets (E1–E5), models compared (e.g., EDSR, ClimateSD), and architectural choices (EDSR backbone, MAML structure) are correctly represented. The summary is comprehensive, precise, and maintains quantitative and conceptual fidelity."
+  },
+  {
+    "article_id":"2404.17615",
+    "title":"deepvarma: a hybrid deep learning and varma model for chemical industry index forecasting",
+    "faithfulness_score":0.9,
+    "reason":"The Actual Output aligns closely with the Input across all evaluation steps. It accurately reflects the research objective of forecasting the synthetic materials index using a hybrid DeepVARMA model. All key methodological components—LSTM for trend extraction, VARMAX for residual modeling with exogenous variables, and the two variants DeepVARMA-re and DeepVARMA-en—are correctly described with proper technical context. The explanation of model integration, including the use of LaTeX notation for $y_t$, $\\\\mu_t$, $e_t$, and $\\\\hat{y}_t$, matches the Input's formulation. The results section correctly identifies that DeepVARMA performs best on non-stationary data while DeepVARMA-en excels on stationary data, consistent with the Input. Evaluation metrics (MSE, RMSE, MAE, MAPE) are accurately listed and applied in context. There are no hallucinations or unsupported claims; causal relationships and performance comparisons are directly grounded in the Input. Minor omissions include lack of specific dates (April 2021–April 2024) and absence of explicit mention of data sources, but these do not affect core fidelity. Overall, the response demonstrates strong quantitative and conceptual alignment."
+  },
+  {
+    "article_id":"2404.17746",
+    "title":"on the rashomon ratio of infinite hypothesis sets",
+    "faithfulness_score":0.9,
+    "reason":"The response aligns closely with the input, accurately summarizing the research objective, methodology, results, and conclusions. It correctly identifies the extension of the Rashomon ratio to infinite families, the use of Monte-Carlo estimation (Theorem 1), and the analytical setup for affine classifiers and ReLU networks. Key technical details are preserved: the compactification of affine classifiers on a sphere, the dependence of the Rashomon ratio on the distance between Gaussian means, the minimum values for d=1 and d=2 (0.36 and 0.18), and the lower bound of 10^{-10} for the Iris dataset with ReLU networks. LaTeX notation (e.g., $R_{ratio}(F, \\\\gamma)$, $H_\\\\infty$, $y^T (H_\\\\infty)^{-1} y$) is used correctly and in context. Theorems 2 and 3 are accurately described, including the probabilistic guarantee for intersection with the Rashomon set. No hallucinations or unsupported claims are present; all methodological and causal claims are directly supported by the input. Minor omissions include not explicitly stating Lemma 4's five properties in full, but the core analytical results are conveyed."
+  },
+  {
+    "article_id":"2406.10478",
+    "title":"from words to worlds: transforming one-line prompt into immersive multi-modal digital stories with communicative llm agent",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns well with the Input, accurately summarizing the StoryAgent framework's objectives, methodology, and results. It correctly identifies the three core challenges (flexible intervention, scene interactivity, consistency), describes the expert-critic agent design, mentions key components like the story cluster and asset generation teams, and references correct technical tools (e.g., CC2D, AutoGen, GPT-4) and methods (semantic segmentation [38], depth estimation [55]). The report accurately reflects the hierarchical textual representation, the top-down\/bottom-up pipeline, and intervention types (full regeneration, intermediate, replacement). It correctly notes the qualitative evaluation and lack of quantitative metrics. All technical notations and citations are used appropriately, and no factual contradictions or hallucinations are present. The summary maintains fidelity to the Input's claims about modality coverage, consistency mechanisms, and limitations."
+  },
+  {
+    "article_id":"2406.11778",
+    "title":"brain-inspired computational modeling of action recognition with recurrent spiking neural networks equipped with reinforcement delay learning",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's research objective, methodology, and results with high fidelity. All key mechanisms—RDL, modified R-STDP for inhibitory neurons, intervallic homeostasis, intervallic threshold adaptation, homeostasis on decision, and decentralization—are correctly described with proper technical context and LaTeX notation (e.g., $d_{i,j}$, $\\Delta t_{i,j}$, $[R_{min}, R_{max}]$, $P_i^{observed}$, $P_i^{target}$). Numerical values from ablation studies (e.g., 7.39%, 3.68%, 2.1%, 1.58%) match exactly with those in the Input. Causal relationships and methodological claims (e.g., reward modulation guiding delay learning, decentralization enabling specialization) are directly supported by the Input. No hallucinations or overgeneralizations are present. The structure, training phases, and evaluation on DVS128-Gesture are correctly summarized."
+  },
+  {
+    "article_id":"2406.11815",
+    "title":"llarva: vision-action instruction tuning enhances robot learning",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately reproduces key numerical values such as the 55.3% average success rate on RLBench, 95.0% success on 'pick cube' with the real robot, and the 17.5% and 15% improvements from ablation studies—all of which exactly match the Input. Technical notations like LaTeX formulas (e.g., $l_t$, $P_{t:N}$, $s_{t-h:t}$) are correctly used in context. Methodological claims—such as the benefits of instruction pre-training and visual trace prediction—are explicitly supported by the Input and not overgeneralized. There are no factual contradictions or hallucinated results; all comparisons to baselines (e.g., PerAct, RPT, Octo) and datasets (e.g., OXE) are consistent with the Input. The summary captures the model architecture, training procedure, and experimental outcomes with high fidelity."
+  },
+  {
+    "article_id":"2411.16348",
+    "title":"extracting linear relations from gröbner bases for formal verification of and-inverter graphs",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's core contributions, methodology, and results with high fidelity. It correctly identifies the research objective of addressing monomial blow-up via a degree reverse lexicographic ordering and the key theoretical result (Theorem 1) that linear specifications can be verified using only linear polynomials from the Gröbner basis. The methodology section precisely describes the linearization process with extension variables, the incremental local Gröbner basis computation, and preprocessing heuristics. Technical notations like $≺_{lex}$ and $≺_{drl}$ are used correctly and consistently. The results are faithfully summarized: the proposed method (MultiLinG) solves all 15 optimized ABC benchmarks where AMulet2 and TeluMA fail, but only 29 of 192 aoki benchmarks, compared to 192 for AMulet2\/TeluMA and 163 for DPOO. It correctly notes the computational bottleneck in msolve calls and the complementary nature of the approach, especially on carry-lookahead adders. No factual contradictions or hallucinations are present, and all quantitative claims match the Input."
+  },
+  {
+    "article_id":"2501.04031",
+    "title":"a continuous scale space of diffeomorphisms",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately summarizes the input paper with high fidelity. It correctly identifies the research objective of continuous multi-scale diffeomorphic registration and the construction of an RKHS for scale-dependent vector fields. The methodology section precisely describes the Sobolev-type norm involving the measure ρ and scale derivative, the use of piecewise constant kernels, and the MS-LDDMM optimal control formulation with base scales. Key technical elements like the Fourier transform approach to kernel computation and the tridiagonal system for piecewise constant cases are correctly presented. The results section faithfully reflects the experimental findings on deformation dampening, the advantage of two base scales, and the use of Jacobian and residual visualizations. All mathematical notation (e.g., $W$, $K_W$, $\\\\|v\\\\|_W^2$) matches the input, and causal relationships are properly supported without overgeneralization."
+  },
+  {
+    "article_id":"2501.04645",
+    "title":"dynamics of newton-like root finding methods",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's core research objective of justifying the universal operator form for Newton-like methods applied to quadratic polynomials, correctly identifying symmetry and Theorem 2.7 as central. It precisely reproduces the generic operator formula with LaTeX fidelity, correctly references key theorems (2.2, 2.7), propositions (3.5, 3.6), and dynamical concepts (strange fixed points, parameter planes). The methodological claims about λ_d-odd maps and conjugacy are directly supported in the Input. The analysis of n and k relationships and their impact on convergence aligns with the Input's assertions. All technical terms (e.g., superattracting, Möbius conjugacy) and numerical dependencies (linear coefficient-parameter relationship) are used in correct context. No hallucinations or inverted results are present."
+  },
+  {
+    "article_id":"2501.05484",
+    "title":"tuning-free long video generation via global-local collaborative diffusion",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately reproduces key numerical values (e.g., 49-frame base, extension to over 1,000 frames), correctly references ablation study metrics (14.56, 2.01, 2.92, 2.03, 0.15 point drops), and maintains precise units and model names (CogVideoX, VBench). LaTeX formulas for $z_{t-1}$ and $z'_T$ match those implied in the Input, including correct use of FFT3D, IFFT3D, and tensor operations. Technical terms such as GLCD, VMCR, Global Dilated Sampling, and Local Random Shifting Sampling are used in their proper context. Methodological claims—such as the unified optimization framework, the role of the annealing coefficient $\\gamma$, and the function of auxiliary modules—are directly supported by the Input. No hallucinations or unsupported generalizations are present. The summary captures all four contributions listed in the Input and reflects limitations accurately."
+  },
+  {
+    "article_id":"2501.11162",
+    "title":"query repairs",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output provides a comprehensive and accurate synthesis of the Input, correctly summarizing the research objective, methodology, and key results. It precisely captures the two proximity pre-orders (⪯_cod and ⪯_edit-dist), their definitions involving symmetric difference containment and edit distance on homomorphism cores, and the critical theoretical distinctions: the problematic behavior of ⪯_cod (non-existence, infiniteness) versus the well-foundedness and finite-basis property of ⪯_edit-dist. The report correctly references algorithmic problems (existence, verification, construction), complexity results (ExpTime-completeness for ⪯_cod-specialization-existence, Σ^p_3 for ⪯_edit-dist-repair-verification), and size bounds (exponential for ⪯_cod, polynomial for ⪯_edit-dist). All technical terms and LaTeX formulas ($\\\\preceq$, $\\\\Delta$, $|q'| \\\\le |q| + n$) are used in the correct context and match the Input. No hallucinations or unsupported claims are present; all assertions are directly supported by the text, including the comparison with alternative metrics like sdi-dist. The summary aligns perfectly with the evaluation steps, demonstrating strong fidelity to the source material."
+  },
+  {
+    "article_id":"2504.05066",
+    "title":"turing instability for nonlocal heterogeneous reaction-diffusion systems: a computer-assisted proof approach",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's core research objective of proving Turing instability in a nonlocal system via computer-assisted methods. It correctly identifies the model equations, parameters (a=-3, b=2, c=3, d=-3, ϑ=1, Ω=(0,2)), and the critical interval for δ* as (2.428, 2.46), matching δ0 and δ1 from the Input. The methodology description precisely captures the two-stage basis change, use of Gershgorin's theorem for infinite matrices, interval arithmetic, and the Newton-Kantorovich\/implicit function theorem approach for the derivative bound. Technical notations like $\\delta^*$, $\\text{Re}(d_0(\\delta))$, and $[0.16, 0.26]$ are used correctly and consistently with the Input. All causal claims, such as the destabilizing effect of large δ and the monotonicity of d0(δ), are directly supported by the Input. No factual contradictions or hallucinations are present, and the summary aligns perfectly with the Input's structure and content."
+  },
+  {
+    "article_id":"2504.05225",
+    "title":"vision-language model predictive control for manipulation planning and trajectory generation",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output demonstrates strong alignment with the Input across all evaluation steps. It accurately reproduces key numerical and structural details: the use of VLMs (GPT-4V, Qwen-VL), the formulation of the sampling mean μ_t with weighting parameters, the l_2 pixel distance cost, the 3D voxel value map V ∈ R^{w×h×d}, and the trajectory cost summation. Technical notations such as LaTeX-style equations (e.g., $\\mathcal{N}(\\mu_t, I)$, $C_j(t_k) = \\sum_{i=1}^{N_T} V(P_{i}^j(t_k))$) are correctly used in context. Methodological claims—such as the 'look before you leap' capability, the role of the VLM switcher, and the computational advantages of Traj-VLMPC—are directly supported by the Input. There are no factual contradictions or hallucinated results; all experimental outcomes (e.g., higher success rates and faster execution for Traj-VLMPC) are faithfully reflected. The ablation study findings and comparisons to baselines like VP² are also correctly summarized."
+  },
+  {
+    "article_id":"2512.03463",
+    "title":"text-printed image: bridging the image-text modality gap for text-centric training of large vision-language models",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns closely with the Input across all evaluation steps. It accurately reproduces key numerical and methodological details: benchmark datasets (ScienceQA, OK-VQA, etc.), models (LLaVA, Qwen-VL), and evaluation metrics (JS divergence, CKA, Gap Ratio, relevance score). Technical notations such as the formal transformation $T(t) = p_\\theta(R(t; \\psi))$ and $P(\\text{\\\"Yes\\\"})$ are correctly rendered using LaTeX. Methodological claims—such as TPI outperforming T2I and Text-only, the correlation with OCR ability, and the effectiveness in low-data regimes—are directly supported by the Input. There are no factual contradictions or hallucinations; all assertions (e.g., TPI’s architecture-agnostic nature, semantic fidelity, efficiency) are grounded in the provided text. The summary even correctly notes nuanced findings, such as Qwen VL’s smaller modality gap due to higher intrinsic performance and the minimal gains in full-data augmentation on OK-VQA. All requirements (R1-R3) and experimental results are faithfully represented."
+  },
+  {
+    "article_id":"711.0189",
+    "title":"a tutorial on spectral clustering",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output aligns strongly with the Input, accurately summarizing the core concepts, methodologies, and theoretical justifications of spectral clustering. It correctly identifies and defines the three graph Laplacians (L, L_sym, L_rw), links unnormalized spectral clustering to RatioCut and normalized variants to Ncut, and accurately describes the algorithmic steps, including row normalization for L_sym. The report correctly references key theoretical perspectives (graph partitioning, random walks, perturbation theory), mentions the Davis-Kahan theorem and eigengap heuristic, and draws the correct conclusion favoring normalized spectral clustering, especially with L_rw, based on consistency and objective function properties. All technical terms, formulas, and methodological claims are contextually accurate and directly supported by the Input."
+  },
+  {
+    "article_id":"math\/0702019",
+    "title":"stability results for scattered data interpolation by trigonometric polynomials",
+    "faithfulness_score":1.0,
+    "reason":"The Actual Output accurately reflects the Input's core content, preserving key technical details: it correctly restates the optimal interpolation problem (1.3), references the damped normal equations, identifies the kernel matrix structure, and accurately summarizes Lemma 2.2 and Algorithm 1 (CGNE). It correctly reports the condition N > 2dq⁻¹ for full rank of A (Corollary 4.7), the use of Gershgorin’s theorem for eigenvalue bounds, and the smoothness-decay principle linking weight function smoothness to kernel localization (Theorem 3.3). The numerical examples are faithfully summarized, including the M=100, N=1000 reconstruction and the glacier data with M=8345. Technical notations such as LaTeX for matrices, norms, and kernels are properly used. There are no factual contradictions or hallucinations. Minor simplifications (e.g., omitting some constants in decay estimates) do not affect fidelity, and all methodological claims are supported by the Input."
+  }
+]

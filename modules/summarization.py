@@ -17,6 +17,41 @@ class LLMProvider(ABC):
     @abstractmethod
     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
         pass
+# import google.generativeai as genai
+# import time
+
+
+# class GeminiProvider(LLMProvider):
+#     def __init__(self, api_key: str, model_name: str = 'gemini-2.0-flash-lite'):
+#         genai.configure(api_key=api_key)
+#         self.model = genai.GenerativeModel(model_name)
+#         self.model_name = model_name
+
+#     @traceable
+#     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
+#         if not prompts:
+#             return []
+
+#         results = []
+#         generation_config = {
+#             "temperature": sampling_params.get("temperature", 0),
+#             "max_output_tokens": sampling_params.get("max_tokens", 16384),
+#             "top_p": sampling_params.get("top_p", 1),
+#         }
+
+#         for prompt in prompts:
+#             try:
+#                 response = self.model.generate_content(
+#                     prompt, 
+#                     generation_config=generation_config
+#                 )
+#                 results.append(response.text)
+#                 time.sleep(10.0) 
+#             except Exception as e:
+#                 print(f"Error calling Gemini API: {e}")
+#                 results.append(f"Error: {e}")
+
+#         return results
 
 class VLLMProvider(LLMProvider):
     def __init__(self, llm_engine, sampling_params_class, model_name: str):
@@ -87,12 +122,7 @@ class VLLMProvider(LLMProvider):
 #         return results
 
 class OpenRouterProvider(LLMProvider):
-    def __init__(self, api_key: str, model_name: str = "openai/gpt-oss-120b:free", use_reasoning: bool = True):
-        """
-        :param api_key: Ключ OpenRouter
-        :param model_name: Название модели (например, "deepseek/deepseek-r1" или "openai/gpt-oss-120b:free")
-        :param use_reasoning: Включить ли расширенные рассуждения (reasoning)
-        """
+    def __init__(self, api_key: str, model_name: str = "qwen/qwen3-30b-a3b-instruct-2507", use_reasoning: bool = False):
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
@@ -100,44 +130,55 @@ class OpenRouterProvider(LLMProvider):
         self.model_name = model_name
         self.use_reasoning = use_reasoning
 
+    @traceable(run_type="llm", name="OpenRouter_Generate")
     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-        if not prompts:
-            return []
-
+        if not prompts: return []
         results = []
-        
-        # Подготовка параметров для OpenRouter (extra_body)
-        extra_body = {}
+        extra_body = {
+        "include_reasoning": False  # Явно запрещаем возвращать поле reasoning
+    }
         if self.use_reasoning:
             extra_body["reasoning"] = {"enabled": True}
 
         for prompt in prompts:
             try:
+                try:
+                    messages = json.loads(prompt)
+                    if not isinstance(messages, list):
+                        raise ValueError()
+                except Exception:
+                    messages = [{"role": "user", "content": prompt}]
+
                 response = self.client.chat.completions.create(
                     model=self.model_name,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=sampling_params.get("temperature", 0.7),
+                    messages=messages,
+                    temperature=sampling_params.get("temperature", 0), 
                     max_tokens=sampling_params.get("max_tokens", 1024),
-                    top_p=sampling_params.get("top_p", 1.0),
                     extra_body=extra_body
                 )
-                content = response.choices[0].message.content
                 
-                # По желанию: можно логгировать рассуждения, если они есть
-                # reasoning = getattr(response.choices[0].message, 'reasoning_details', None)
-                # if reasoning:
-                #     print(f"[DEBUG Reasoning]: {reasoning[:100]}...")
+                # 1. Печатаем полный ответ от API для диагностики структуры
+                print(f"\n[DEBUG] Полный ответ от API OpenRouter:\n{response}\n")
+                
+                message = response.choices[0].message
+                content = getattr(message, "content", None)
+                
+                # Проверяем возможные альтернативные поля для рассуждений (reasoning)
+                reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
 
-                results.append(content)
-
-                # Небольшая пауза для бесплатных лимитов
-                if "free" in self.model_name:
-                    time.sleep(0.1) 
-
+                if content and content.strip():
+                    results.append(content)
+                elif reasoning and reasoning.strip():
+                    print(f"[DEBUG] Обнаружен текст в поле reasoning_content.")
+                    results.append(reasoning)
+                else:
+                    print("[DEBUG] Предупреждение: API вернул пустые поля content и reasoning_content.")
+                    results.append("")
+                    
             except Exception as e:
-                print(f"Error calling OpenRouter ({self.model_name}): {e}")
-                results.append("")
-
+                print(f"Error calling OpenRouter: {e}")
+                results.append(f"Error: {str(e)}")
+                
         return results
 
 class SummarizationPipeline:
@@ -167,18 +208,21 @@ class SummarizationPipeline:
     def _format_chat(self, template: Any, variables: Dict[str, Any], system_fallback: str = None) -> str:
         if hasattr(template, "format_messages"):
             messages = template.format_messages(**variables)
-            formatted =[{"role": "system" if m.type=="system" else "user", "content": m.content} for m in messages]
+            formatted = [{"role": "system" if m.type=="system" else "user", "content": m.content} for m in messages]
         elif isinstance(template, dict):
-            formatted =[
+            formatted = [
                 {"role": "system", "content": template.get('system', '')},
                 {"role": "user", "content": template.get('user', '').format(**variables)}
             ]
         else:
             sys_content = system_fallback if system_fallback else ""
-            formatted =[{"role": "system", "content": str(sys_content)}, 
-                            {"role": "user", "content": str(template).format(**variables)}]
+            formatted = [
+                {"role": "system", "content": str(sys_content)}, 
+                {"role": "user", "content": str(template).format(**variables)}
+            ]
 
-        return self.tokenizer.apply_chat_template(formatted, tokenize=False, add_generation_prompt=True)
+        # Возвращаем JSON-строку со структурой диалога
+        return json.dumps(formatted)
 
     def run(self, overlap_dict: Dict[str, Dict[str, str]], map_params: Dict[str, Any], reduce_params: Dict[str, Any]):
         titles = list(overlap_dict.keys())

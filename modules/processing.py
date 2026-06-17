@@ -3,7 +3,7 @@ from IPython.display import display, Markdown, HTML
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 class ArticleProcessor:
-    def __init__(self, tokenizer, min_tokens: int = 700, max_tokens: int = 3000, overlap_len: int = 250):
+    def __init__(self, tokenizer, min_tokens: int = 700, max_tokens: int = 2000, overlap_len: int = 250):
         """
         Класс для подготовки текста статьи к подаче в LLM.
         

@@ -83,28 +83,25 @@ class ArxivAgent:
         return val
 
     def _format_node_chat(self, node_key: str, variables: Dict[str, Any]) -> str:
-            prompt_data = self.resolved_prompts[node_key]
+        prompt_data = self.resolved_prompts[node_key]
+        
+        if hasattr(prompt_data, "format_messages"):
+            messages = prompt_data.format_messages(**variables)
+            formatted = [{"role": "system" if m.type=="system" else "user", "content": m.content} for m in messages]
+        
+        elif isinstance(prompt_data, dict):
+            formatted = [
+                {"role": "system", "content": str(prompt_data.get('system', ''))},
+                {"role": "user", "content": str(prompt_data.get('user', '')).format(**variables)}
+            ]
+        
+        else:
+            formatted = [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": str(prompt_data).format(**variables)}
+            ]
             
-            # 1. Если это объект из Хаба (ChatPromptTemplate)
-            if hasattr(prompt_data, "format_messages"):
-                messages = prompt_data.format_messages(**variables)
-                formatted = [{"role": "system" if m.type=="system" else "user", "content": m.content} for m in messages]
-            
-            # 2. Если это словарь {"system": ..., "user": ...}
-            elif isinstance(prompt_data, dict):
-                formatted = [
-                    {"role": "system", "content": str(prompt_data.get('system', ''))},
-                    {"role": "user", "content": str(prompt_data.get('user', '')).format(**variables)}
-                ]
-            
-            # 3. Если это просто строка (Fallback)
-            else:
-                formatted = [
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": str(prompt_data).format(**variables)}
-                ]
-                
-            return self.tokenizer.apply_chat_template(formatted, tokenize=False, add_generation_prompt=True)
+        return json.dumps(formatted)
 
     def classifier_node(self, state: AgentState):
         p = self._format_node_chat('classifier', {"query": state['query']})
@@ -194,8 +191,8 @@ class ArxivAgent:
         
         report, chunk_summaries_dict = self.sum_pipeline.run(
             overlap_data, 
-            map_params={"temperature": 0, "max_tokens": 512},
-            reduce_params={"temperature": 0, "max_tokens": 1500}
+            map_params={"temperature": 0.15, "max_tokens": 2048, "frequency_penalty": 1.2},
+            reduce_params={"temperature": 0, "max_tokens": 4096}
         )
         
         header = f"# {title}\n🔗 [PDF]({pdf_url})\n\n"
@@ -246,7 +243,7 @@ class ArxivAgent:
             "notes": "\n".join(notes)
         })
         
-        corrected_summary = self.llm.generate([correction_p], {"max_tokens": 2500, "temperature": 0})[0]
+        corrected_summary = self.llm.generate([correction_p], {"max_tokens": 4096, "temperature": 0})[0]
         
         return {
             "final_answer": corrected_summary,
