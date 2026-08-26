@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package arxiv_agent;
+
+service ArxivAgentService {
+  rpc Ask(AskRequest) returns (AskResponse);
+  rpc SummarizeArticle(SummarizeArticleRequest) returns (AskResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message AskRequest {
+  string query = 1;
+  bool skip_metrics = 2;  // true = не считать RAGAS faithfulness/answer_relevancy (быстрее)
+}
+
+message SummarizeArticleRequest {
+  string article_id = 1;
+  bool skip_metrics = 2;
+}
+
+message ArticleCandidate {
+  string arxiv_id = 1;
+  string title = 2;
+  string abstract = 3;
+}
+
+message AskResponse {
+  string final_answer = 1;
+  string intent = 2;
+  repeated ArticleCandidate candidates = 3;  // summarize без явного ID: статьи на выбор пользователю
+  repeated string sources = 4;               // research: статьи, на которые опирается ответ
+  repeated string tool_calls = 5;
+  optional double faithfulness = 6;          // RAGAS, отсутствует если не считали
+  optional double answer_relevancy = 7;      // RAGAS, отсутствует если не считали
+  string error = 8;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool ok = 1;
+  string backend = 2;
+}

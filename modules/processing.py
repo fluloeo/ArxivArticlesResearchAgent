@@ -1,5 +1,4 @@
-from typing import List, Dict, Any, Optional,Tuple
-from IPython.display import display, Markdown, HTML
+from typing import List, Dict, Any, Tuple
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 class ArticleProcessor:
@@ -82,19 +81,14 @@ class ArticleProcessor:
                 
         return final_dict
 
-    def process(self, data_dict: Dict[str, str], show_report: bool = True) -> Dict[str, str]:
+    def process(self, data_dict: Dict[str, str]) -> Dict[str, str]:
         """
         Полный цикл: Слияние мелких -> Разбиение крупных.
         """
         initial_titles = list(data_dict.keys())
         initial_chunks = list(data_dict.values())
         merged_list = self._merge_small_chunks(initial_titles, initial_chunks)
-        final_dict = self._split_large_chunks(merged_list)
-        
-        if show_report:
-            self._print_report(len(data_dict), len(final_dict))
-            
-        return final_dict
+        return self._split_large_chunks(merged_list)
 
     def create_overlap_dict(self, data_dict: Dict[str, str]) -> Dict[str, Dict[str, str]]:
         """Создает структуру с контекстными перекрытиями (past/future)."""
@@ -109,40 +103,3 @@ class ArticleProcessor:
                 "future_overlap": chunks[i+1][:self.overlap_len] if (i < len(chunks) - 1 and len(chunks[i+1]) > 0) else ""
             }
         return result
-
-    def _print_report(self, before: int, after: int):
-        """Выводит Markdown-отчет о слиянии."""
-        display(Markdown(f"📝 **Preprocessing**: Секций было: `{before}`, стало: `{after}`"))
-
-    @staticmethod
-    def visualize(data_dict: Dict[str, Any], token_counter_func=None) -> None:
-        """
-        Статический метод для визуализации чанков. 
-        Передаем функцию подсчета токенов извне, чтобы не зависеть от self.
-        """
-        if not data_dict:
-            print("No data to visualize.")
-            return
-        titles = list(data_dict.keys())
-        values = list(data_dict.values())
-        is_complex = isinstance(values[0], dict)
-        
-        total_len = sum(len(v['main_text'] if is_complex else v) for v in values)
-        display(Markdown(f"**Всего фрагментов:** `{len(data_dict)}` | **Длина:** `{total_len}` симв.\n\n---"))
-        
-        for i, title in enumerate(titles):
-            val = data_dict[title]
-            past, main, future = ("", val, "") if not is_complex else (val['past_overlap'], val['main_text'], val['future_overlap'])
-            
-            # Если передана функция для токенов - считаем
-            tokens_info = f"`Токенов: {token_counter_func(main)}` | " if token_counter_func else ""
-            
-            display(Markdown(f"### *Chunk {i+1}*: {title}\n>{tokens_info}`Символов: {len(main)}`"))
-            
-            past_h = f"<span style='background-color: #f0f0f0; color: #888;'>{past}</span>" if past else ""
-            future_h = f"<span style='background-color: #f0f0f0; color: #888;'>{future}</span>" if future else ""
-            
-            html = f"""<div style="font-size: 11px; line-height: 1.2; border: 1px solid #ddd; padding: 8px; background-color: #fff;">
-                       {past_h}<span>{main}</span>{future_h}</div>"""
-            display(HTML(html))
-            display(Markdown("\n---\n"))

@@ -1,237 +1,42 @@
-import time
-import requests
-import json
-from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Any, Union
-from langsmith import Client as LangSmithClient
-from openai import OpenAI
-ls_client = LangSmithClient()
-from langsmith import traceable
-try:
-    from langchainhub.client import Client
-    pull = Client().pull
-except:
-    pull = None 
+from typing import Any, Dict, Tuple
 
-class LLMProvider(ABC):
-    @abstractmethod
-    def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-        pass
-# import google.generativeai as genai
-# import time
+from .llm.base import LLMProvider
+from .prompt_resolver import PromptResolver
 
-
-# class GeminiProvider(LLMProvider):
-#     def __init__(self, api_key: str, model_name: str = 'gemini-2.0-flash-lite'):
-#         genai.configure(api_key=api_key)
-#         self.model = genai.GenerativeModel(model_name)
-#         self.model_name = model_name
-
-#     @traceable
-#     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-#         if not prompts:
-#             return []
-
-#         results = []
-#         generation_config = {
-#             "temperature": sampling_params.get("temperature", 0),
-#             "max_output_tokens": sampling_params.get("max_tokens", 16384),
-#             "top_p": sampling_params.get("top_p", 1),
-#         }
-
-#         for prompt in prompts:
-#             try:
-#                 response = self.model.generate_content(
-#                     prompt, 
-#                     generation_config=generation_config
-#                 )
-#                 results.append(response.text)
-#                 time.sleep(10.0) 
-#             except Exception as e:
-#                 print(f"Error calling Gemini API: {e}")
-#                 results.append(f"Error: {e}")
-
-#         return results
-
-class VLLMProvider(LLMProvider):
-    def __init__(self, llm_engine, sampling_params_class, model_name: str):
-        self.llm = llm_engine
-        self.params_factory = sampling_params_class
-        self.model_name = model_name
-        self.generations_log = []
-
-    @traceable(run_type="llm", name="vLLM_Generate")
-    def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-        if not prompts: return[]
-        vllm_params = self.params_factory(**sampling_params)
-        outputs = self.llm.generate(prompts, vllm_params)
-        texts = [output.outputs[0].text for output in outputs]
-        for p, t in zip(prompts, texts):
-            self.generations_log.append({
-                "timestamp": time.time(),
-                "model": self.model_name,
-                "prompt": p,
-                "response": t,
-                "params": sampling_params
-            })
-        return texts
-    def save_log_to_json(self, filename="debug_generations.json"):
-        with open(filename, "w", encoding="utf-8") as f:
-            json.dump(self.generations_log, f, ensure_ascii=False, indent=2)
-
-# class MistralProvider(LLMProvider):
-#     def __init__(self, api_key: str, model_name: str = "mistral-small-latest"):
-#         self.api_key = api_key
-#         self.model_name = model_name
-#         self.url = "https://api.mistral.ai/v1/chat/completions"
-
-#     def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-#         if not prompts:
-#             return []
-
-#         results = []
-#         headers = {
-#             "Authorization": f"Bearer {self.api_key}",
-#             "Content-Type": "application/json",
-#             "Accept": "application/json"
-#         }
-
-#         for prompt in prompts:
-#             payload = {
-#                 "model": self.model_name,
-#                 "messages": [{"role": "user", "content": prompt}],
-#                 "temperature": sampling_params.get("temperature", 0.7),
-#                 "top_p": sampling_params.get("top_p", 1.0),
-#                 "max_tokens": sampling_params.get("max_tokens", 1024),
-#             }
-
-#             try:
-#                 response = requests.post(self.url, json=payload, headers=headers)
-#                 response.raise_for_status()
-#                 data = response.json()
-                
-#                 content = data['choices'][0]['message']['content']
-#                 results.append(content)
-            
-#                 time.sleep(0.1) 
-                
-#             except Exception as e:
-#                 print(f"Error calling Mistral API: {e}")
-#                 results.append("")
-
-#         return results
-
-class OpenRouterProvider(LLMProvider):
-    def __init__(self, api_key: str, model_name: str = "qwen/qwen3-30b-a3b-instruct-2507", use_reasoning: bool = False):
-        self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-        )
-        self.model_name = model_name
-        self.use_reasoning = use_reasoning
-
-    @traceable(run_type="llm", name="OpenRouter_Generate")
-    def generate(self, prompts: List[str], sampling_params: Dict[str, Any]) -> List[str]:
-        if not prompts: return []
-        results = []
-        extra_body = {
-        "include_reasoning": False  # Явно запрещаем возвращать поле reasoning
-    }
-        if self.use_reasoning:
-            extra_body["reasoning"] = {"enabled": True}
-
-        for prompt in prompts:
-            try:
-                try:
-                    messages = json.loads(prompt)
-                    if not isinstance(messages, list):
-                        raise ValueError()
-                except Exception:
-                    messages = [{"role": "user", "content": prompt}]
-
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=sampling_params.get("temperature", 0), 
-                    max_tokens=sampling_params.get("max_tokens", 1024),
-                    extra_body=extra_body
-                )
-                
-                # 1. Печатаем полный ответ от API для диагностики структуры
-                print(f"\n[DEBUG] Полный ответ от API OpenRouter:\n{response}\n")
-                
-                message = response.choices[0].message
-                content = getattr(message, "content", None)
-                
-                # Проверяем возможные альтернативные поля для рассуждений (reasoning)
-                reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
-
-                if content and content.strip():
-                    results.append(content)
-                elif reasoning and reasoning.strip():
-                    print(f"[DEBUG] Обнаружен текст в поле reasoning_content.")
-                    results.append(reasoning)
-                else:
-                    print("[DEBUG] Предупреждение: API вернул пустые поля content и reasoning_content.")
-                    results.append("")
-                    
-            except Exception as e:
-                print(f"Error calling OpenRouter: {e}")
-                results.append(f"Error: {str(e)}")
-                
-        return results
 
 class SummarizationPipeline:
-    def __init__(self, provider: LLMProvider, tokenizer, prompts: Dict[str, Any], local_prompts: Dict[str, Any] = None, use_hub: bool = True):
+    """Map-Reduce суммаризация статьи по чанкам с перекрытиями (см. ArticleProcessor).
+
+    Провайдеры LLM и логика резолва промптов больше не живут здесь — см.
+    modules.llm и modules.prompt_resolver соответственно (устраняет дублирование,
+    которое раньше было почти дословной копией того, что делал ArxivAgent).
+    """
+
+    def __init__(self, provider: LLMProvider, prompts: Dict[str, Any], prompt_resolver: PromptResolver):
         self.provider = provider
-        self.tokenizer = tokenizer
-        self.use_hub = use_hub
-        self.local_prompts = local_prompts or {}
-        
-        # Резолвим промпты передавая сразу ключ и значение
-        self.resolved_prompts = {k: self._resolve(k, v) for k, v in prompts.items()}
+        self.prompt_resolver = prompt_resolver
+        self.resolved_prompts = prompt_resolver.resolve_all(prompts)
 
-    def _resolve(self, key: str, val: Any):
-        # 1. Пробуем скачать из хаба, если включено
-        if self.use_hub and isinstance(val, str):
-            try:
-                print(f"Pulling prompt from LangSmith: {val}")
-                return ls_client.pull_prompt(val)
-            except Exception as e:
-                print(f"Failed to pull {val}: {e}. Falling back to local.")
-        
-        if key in self.local_prompts:
-            return self.local_prompts[key]
-            
-        return val
-
-    def _format_chat(self, template: Any, variables: Dict[str, Any], system_fallback: str = None) -> str:
-        if hasattr(template, "format_messages"):
-            messages = template.format_messages(**variables)
-            formatted = [{"role": "system" if m.type=="system" else "user", "content": m.content} for m in messages]
-        elif isinstance(template, dict):
-            formatted = [
-                {"role": "system", "content": template.get('system', '')},
-                {"role": "user", "content": template.get('user', '').format(**variables)}
-            ]
-        else:
-            sys_content = system_fallback if system_fallback else ""
-            formatted = [
-                {"role": "system", "content": str(sys_content)}, 
-                {"role": "user", "content": str(template).format(**variables)}
-            ]
-
-        # Возвращаем JSON-строку со структурой диалога
-        return json.dumps(formatted)
-
-    def run(self, overlap_dict: Dict[str, Dict[str, str]], map_params: Dict[str, Any], reduce_params: Dict[str, Any]):
+    def run(
+        self,
+        overlap_dict: Dict[str, Dict[str, str]],
+        map_params: Dict[str, Any],
+        reduce_params: Dict[str, Any],
+    ) -> Tuple[str, Dict[str, str]]:
         titles = list(overlap_dict.keys())
-        map_prompts = [self._format_chat(self.resolved_prompts['map'], {"title": t, **p}, self.resolved_prompts.get('system_map')) 
-                       for t, p in overlap_dict.items()]
-        
-        chunk_summaries = self.provider.generate(map_prompts, map_params)
-        combined = "\n\n".join([f"### {t}\n{s}" for t, s in zip(titles, chunk_summaries)])
-        
-        reduce_p = self._format_chat(self.resolved_prompts['reduce'], {"summaries": combined}, self.resolved_prompts.get('system_reduce'))
-        final_report = self.provider.generate([reduce_p], reduce_params)[0]
+
+        map_conversations = [
+            self.prompt_resolver.format_chat(
+                self.resolved_prompts["map"], {"title": t, **p}, str(self.resolved_prompts.get("system_map", ""))
+            )
+            for t, p in overlap_dict.items()
+        ]
+        chunk_summaries = self.provider.generate(map_conversations, map_params)
+        combined = "\n\n".join(f"### {t}\n{s}" for t, s in zip(titles, chunk_summaries))
+
+        reduce_conversation = self.prompt_resolver.format_chat(
+            self.resolved_prompts["reduce"], {"summaries": combined}, str(self.resolved_prompts.get("system_reduce", ""))
+        )
+        final_report = self.provider.generate([reduce_conversation], reduce_params)[0]
+
         return final_report, dict(zip(titles, chunk_summaries))

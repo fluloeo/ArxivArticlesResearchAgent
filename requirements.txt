@@ -1,0 +1,31 @@
+# Ядро агента
+langgraph>=0.2
+langsmith
+langchain-core
+langchain-text-splitters
+pydantic>=2
+PyYAML
+python-dotenv
+pandas
+
+# LLM-бэкенды
+mlx
+mlx-lm
+openai        # для OpenRouterProvider (опциональный бэкенд, OpenAI-совместимый API)
+# vLLM не входит сюда: он GPU-only и подключается вручную (см. modules/llm/vllm_provider.py)
+
+# Эмбеддинги — только для RAGAS answer relevancy (modules/ragas_eval.py), не для retrieval
+sentence-transformers
+
+# Источник данных: живой arXiv вместо утраченных Postgres/LanceDB
+requests
+beautifulsoup4
+pymupdf
+
+# gRPC backend
+grpcio
+grpcio-tools
+protobuf
+
+# Streamlit UI
+streamlit
