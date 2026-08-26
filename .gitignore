@@ -6,3 +6,4 @@ notebooks/
 prompts.yaml
 data/*.sqlite
 __pycache__/
+*.ipynb
