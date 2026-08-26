@@ -7,3 +7,7 @@ prompts.yaml
 data/*.sqlite
 __pycache__/
 *.ipynb
+*.log
+.venv/
+venv/
+.DS_Store
