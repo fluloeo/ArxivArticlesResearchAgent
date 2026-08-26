@@ -1,8 +1,8 @@
 .env
+*.json
 last_id.txt
 arxiv_lancedb/
 notebooks/
 prompts.yaml
 data/*.sqlite
 __pycache__/
-*.json
