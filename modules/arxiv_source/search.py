@@ -1,5 +1,4 @@
 import logging
-import re
 import threading
 import time
 from dataclasses import dataclass
@@ -8,11 +7,16 @@ from xml.etree import ElementTree
 
 import requests
 
+from .identifiers import extract_arxiv_id, extract_id_from_atom_url  # noqa: F401 — extract_arxiv_id
+# сюда больше не вызывается напрямую (см. _parse_feed ниже), но реэкспортируется для
+# обратной совместимости: modules/agent.py исторически импортировал его отсюда, теперь
+# переключён на modules.arxiv_source.identifiers напрямую, но другой код мог остаться
+# на старом пути импорта.
+
 logger = logging.getLogger(__name__)
 
 _ATOM_NS = "{http://www.w3.org/2005/Atom}"
 _ARXIV_API_URL = "http://export.arxiv.org/api/query"
-_ARXIV_ID_RE = re.compile(r"\b(\d{4}\.\d{4,5})(v\d+)?\b")
 _USER_AGENT = "ArxivArticlesResearchAgent/1.0 (mailto:research-agent@example.com)"
 _RETRIES = 2
 _RETRY_BACKOFF_SEC = 5.0
@@ -52,12 +56,6 @@ class ArxivPaperMeta:
     title: str
     abstract: str
     pdf_url: str
-
-
-def extract_arxiv_id(text: str) -> Optional[str]:
-    """Достаёт arXiv ID вида 2301.12345 из произвольного текста/URL пользователя."""
-    match = _ARXIV_ID_RE.search(text)
-    return match.group(1) if match else None
 
 
 class ArxivSearchClient:
@@ -122,6 +120,13 @@ class ArxivSearchClient:
                 return title_results
         return self._run_query(f"all:{query}", max_results)
 
+    def run_raw_query(self, search_query: str, max_results: int = 5) -> List[ArxivPaperMeta]:
+        """Публичный вход для уже готовой `search_query`-строки (field-scoped булев запрос:
+        `ti:`/`abs:`/`all:`/`au:`/`cat:`/`submittedDate:`) — используется
+        modules.query_rewriter/ArxivToolkit.find_candidates для лестницы запросов
+        возрастающей широты, минуя эвристику `ti:`/`all:` из search()."""
+        return self._run_query(search_query, max_results)
+
     def _run_query(self, search_query: str, max_results: int) -> List[ArxivPaperMeta]:
         xml_text = self._get(
             {
@@ -158,7 +163,15 @@ class ArxivSearchClient:
         results: List[ArxivPaperMeta] = []
         for entry in root.findall(f"{_ATOM_NS}entry"):
             raw_id = (entry.findtext(f"{_ATOM_NS}id") or "").strip()
-            arxiv_id = extract_arxiv_id(raw_id) or raw_id.rsplit("/", 1)[-1]
+            # <id> Atom-фида ВСЕГДА "http://arxiv.org/abs/{id}v{n}" — extract_id_from_atom_url
+            # знает эту форму точно (см. modules/arxiv_source/identifiers.py). Раньше здесь
+            # был `extract_arxiv_id(raw_id) or raw_id.rsplit("/", 1)[-1]`: для старого формата
+            # ID (например math/0702019) старая _ARXIV_ID_RE не матчилась вовсе, и срабатывал
+            # rsplit-фоллбек — "http://arxiv.org/abs/math/0702019v1".rsplit("/", 1)[-1] даёт
+            # "0702019v1": префикс архива теряется, версия остаётся. Испорченный id уходил
+            # в ключ SQLite-кэша и в URL PDF. Баг был не гипотетическим — такая статья есть
+            # в article_sample.json (см. evaluation/suites/summarization.yaml, sum-math-0702019).
+            arxiv_id = extract_id_from_atom_url(raw_id)
             if not arxiv_id:
                 continue
 

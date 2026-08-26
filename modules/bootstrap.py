@@ -9,6 +9,7 @@ from .llm.base import LLMProvider
 from .local_prompts import load_local_prompts
 from .processing import ArticleProcessor
 from .prompt_resolver import PromptResolver
+from .query_rewriter import QueryRewriter
 from .ragas_eval import RagasEvaluator
 from .summarization import SummarizationPipeline
 from .tools import ArxivToolkit
@@ -86,11 +87,21 @@ def build_agent_with_provider(config: AppConfig, llm: LLMProvider) -> ArxivAgent
 
     search_client = ArxivSearchClient()
     article_store = SqliteArxivArticleStore(config.cache_db_path, search_client=search_client)
+    # Rewriter — той же основной моделью, что отвечает пользователю (в отличие от RAGAS-
+    # судьи это не измерение качества, а часть самого инференс-пути: без перевода термина
+    # на английский arXiv по русскому запросу физически ничего не найдёт).
+    rewriter = QueryRewriter(
+        llm=llm,
+        prompt_resolver=agent_prompt_resolver,
+        prompts=_hub_ref_map(["query_rewrite"]),
+        params=config.node_gen.query_rewrite,
+    )
     toolkit = ArxivToolkit(
         search_client=search_client,
         article_store=article_store,
         excerpt_chars=config.fulltext_excerpt_chars,
         max_candidates=config.arxiv_search_max_candidates,
+        rewriter=rewriter,
     )
 
     processor = ArticleProcessor(
@@ -136,6 +147,7 @@ def build_agent_with_provider(config: AppConfig, llm: LLMProvider) -> ArxivAgent
         debug_mode=config.debug_mode,
         max_research_iterations=config.max_research_iterations,
         min_research_iterations=config.min_research_iterations,
+        summarization_log_dir=config.summarization_log_dir,
     )
     logger.info(
         "ArxivAgent built: backend=%s use_ragas=%s use_hub=%s", config.llm_backend, config.use_ragas, config.use_hub

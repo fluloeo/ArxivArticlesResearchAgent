@@ -19,6 +19,13 @@ def _build_ask_response(result: Dict[str, Any], intent_override: Optional[str] =
         arxiv_agent_pb2.ArticleCandidate(arxiv_id=c["arxiv_id"], title=c["title"], abstract=c["abstract"])
         for c in result.get("candidates") or []
     ]
+    # debug_data (modules/agent.py::map_reduce_summarize_node) — map-выжимки по разделам,
+    # раньше терялись на границе gRPC (были в state, но AskResponse их не нёс): достаются
+    # только в проводе, через notebook_utils.visualize() в ноутбуке или прямой agent.invoke().
+    map_summaries = [
+        arxiv_agent_pb2.ChunkSummary(title=title, summary=summary)
+        for title, summary in (result.get("debug_data") or {}).items()
+    ]
 
     kwargs: Dict[str, Any] = dict(
         final_answer=result.get("final_answer", ""),
@@ -26,6 +33,7 @@ def _build_ask_response(result: Dict[str, Any], intent_override: Optional[str] =
         candidates=candidates,
         sources=result.get("sources") or [],
         tool_calls=tool_calls,
+        map_summaries=map_summaries,
     )
     if result.get("faithfulness") is not None:
         kwargs["faithfulness"] = result["faithfulness"]

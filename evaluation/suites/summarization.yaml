@@ -1,0 +1,36 @@
+suite: summarization
+entry: summarize_app
+description: >
+  Суммаризация по 50-статейной офлайн-выборке (article_sample.json). Один кейс на
+  статью, entry=summarize_app минует classifier/resolve_target_article — id уже известен.
+  Требует InMemoryArticleStore (см. evaluation/dataset/offline_store.py) — ноль запросов
+  к arXiv. Эталон для vs_reference — dataset_gemini_final.json (gemini-2.5-pro).
+
+metrics:
+  map_reduce_summarize:
+    map_stage: [faithfulness, coverage]
+    reduce_stage: [faithfulness, coverage]
+    end_to_end: [faithfulness, coverage]
+    vs_reference: [coverage]
+
+cases_from:
+  asset: article_sample.json
+  case_id_prefix: sum
+  reference:
+    asset: dataset_gemini_final.json
+  expected_path: [fetch_fulltext, process_and_chunk, map_reduce_summarize]
+
+cases:
+  # Регрессионный кейс: math/0702019 — старый формат arXiv ID (до 2007 года,
+  # "архив/номер" вместо "ГГММ.NNNNN"). До фикса modules/arxiv_source/identifiers.py
+  # (см. план, §6.1) это единственная статья в выборке, где корректность результата
+  # зависит от того, что resolve_reference/fetch_fulltext не портят id. id того же
+  # article_id уже генерируется автоматически из cases_from (case_id "sum-math-0702019",
+  # "/" санитизируется в loader.py::_slug) — этот явный блок ПЕРЕОПРЕДЕЛЯЕТ его тем же
+  # содержимым, только чтобы note был виден в отчёте как отдельная примечательная строка.
+  - id: sum-math-0702019
+    query: "Summarize arXiv:math/0702019"
+    entry: summarize_app
+    target_article_id: "math/0702019"
+    expected_path: [fetch_fulltext, process_and_chunk, map_reduce_summarize]
+    note: "старый формат arXiv ID — регрессионный кейс"

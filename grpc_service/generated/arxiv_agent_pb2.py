@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11\x61rxiv_agent.proto\x12\x0b\x61rxiv_agent\"1\n\nAskRequest\x12\r\n\x05query\x18\x01 \x01(\t\x12\x14\n\x0cskip_metrics\x18\x02 \x01(\x08\"C\n\x17SummarizeArticleRequest\x12\x12\n\narticle_id\x18\x01 \x01(\t\x12\x14\n\x0cskip_metrics\x18\x02 \x01(\x08\"E\n\x10\x41rticleCandidate\x12\x10\n\x08\x61rxiv_id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x10\n\x08\x61\x62stract\x18\x03 \x01(\t\"\xfa\x01\n\x0b\x41skResponse\x12\x14\n\x0c\x66inal_answer\x18\x01 \x01(\t\x12\x0e\n\x06intent\x18\x02 \x01(\t\x12\x31\n\ncandidates\x18\x03 \x03(\x0b\x32\x1d.arxiv_agent.ArticleCandidate\x12\x0f\n\x07sources\x18\x04 \x03(\t\x12\x12\n\ntool_calls\x18\x05 \x03(\t\x12\x19\n\x0c\x66\x61ithfulness\x18\x06 \x01(\x01H\x00\x88\x01\x01\x12\x1d\n\x10\x61nswer_relevancy\x18\x07 \x01(\x01H\x01\x88\x01\x01\x12\r\n\x05\x65rror\x18\x08 \x01(\tB\x0f\n\r_faithfulnessB\x13\n\x11_answer_relevancy\"\x14\n\x12HealthCheckRequest\"2\n\x13HealthCheckResponse\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\x0f\n\x07\x62\x61\x63kend\x18\x02 \x01(\t2\xf3\x01\n\x11\x41rxivAgentService\x12\x38\n\x03\x41sk\x12\x17.arxiv_agent.AskRequest\x1a\x18.arxiv_agent.AskResponse\x12R\n\x10SummarizeArticle\x12$.arxiv_agent.SummarizeArticleRequest\x1a\x18.arxiv_agent.AskResponse\x12P\n\x0bHealthCheck\x12\x1f.arxiv_agent.HealthCheckRequest\x1a .arxiv_agent.HealthCheckResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11\x61rxiv_agent.proto\x12\x0b\x61rxiv_agent\"1\n\nAskRequest\x12\r\n\x05query\x18\x01 \x01(\t\x12\x14\n\x0cskip_metrics\x18\x02 \x01(\x08\"C\n\x17SummarizeArticleRequest\x12\x12\n\narticle_id\x18\x01 \x01(\t\x12\x14\n\x0cskip_metrics\x18\x02 \x01(\x08\"E\n\x10\x41rticleCandidate\x12\x10\n\x08\x61rxiv_id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x10\n\x08\x61\x62stract\x18\x03 \x01(\t\".\n\x0c\x43hunkSummary\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0f\n\x07summary\x18\x02 \x01(\t\"\xac\x02\n\x0b\x41skResponse\x12\x14\n\x0c\x66inal_answer\x18\x01 \x01(\t\x12\x0e\n\x06intent\x18\x02 \x01(\t\x12\x31\n\ncandidates\x18\x03 \x03(\x0b\x32\x1d.arxiv_agent.ArticleCandidate\x12\x0f\n\x07sources\x18\x04 \x03(\t\x12\x12\n\ntool_calls\x18\x05 \x03(\t\x12\x19\n\x0c\x66\x61ithfulness\x18\x06 \x01(\x01H\x00\x88\x01\x01\x12\x1d\n\x10\x61nswer_relevancy\x18\x07 \x01(\x01H\x01\x88\x01\x01\x12\r\n\x05\x65rror\x18\x08 \x01(\t\x12\x30\n\rmap_summaries\x18\t \x03(\x0b\x32\x19.arxiv_agent.ChunkSummaryB\x0f\n\r_faithfulnessB\x13\n\x11_answer_relevancy\"\x14\n\x12HealthCheckRequest\"2\n\x13HealthCheckResponse\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\x0f\n\x07\x62\x61\x63kend\x18\x02 \x01(\t2\xf3\x01\n\x11\x41rxivAgentService\x12\x38\n\x03\x41sk\x12\x17.arxiv_agent.AskRequest\x1a\x18.arxiv_agent.AskResponse\x12R\n\x10SummarizeArticle\x12$.arxiv_agent.SummarizeArticleRequest\x1a\x18.arxiv_agent.AskResponse\x12P\n\x0bHealthCheck\x12\x1f.arxiv_agent.HealthCheckRequest\x1a .arxiv_agent.HealthCheckResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,12 +37,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SUMMARIZEARTICLEREQUEST']._serialized_end=152
   _globals['_ARTICLECANDIDATE']._serialized_start=154
   _globals['_ARTICLECANDIDATE']._serialized_end=223
-  _globals['_ASKRESPONSE']._serialized_start=226
-  _globals['_ASKRESPONSE']._serialized_end=476
-  _globals['_HEALTHCHECKREQUEST']._serialized_start=478
-  _globals['_HEALTHCHECKREQUEST']._serialized_end=498
-  _globals['_HEALTHCHECKRESPONSE']._serialized_start=500
-  _globals['_HEALTHCHECKRESPONSE']._serialized_end=550
-  _globals['_ARXIVAGENTSERVICE']._serialized_start=553
-  _globals['_ARXIVAGENTSERVICE']._serialized_end=796
+  _globals['_CHUNKSUMMARY']._serialized_start=225
+  _globals['_CHUNKSUMMARY']._serialized_end=271
+  _globals['_ASKRESPONSE']._serialized_start=274
+  _globals['_ASKRESPONSE']._serialized_end=574
+  _globals['_HEALTHCHECKREQUEST']._serialized_start=576
+  _globals['_HEALTHCHECKREQUEST']._serialized_end=596
+  _globals['_HEALTHCHECKRESPONSE']._serialized_start=598
+  _globals['_HEALTHCHECKRESPONSE']._serialized_end=648
+  _globals['_ARXIVAGENTSERVICE']._serialized_start=651
+  _globals['_ARXIVAGENTSERVICE']._serialized_end=894
 # @@protoc_insertion_point(module_scope)

@@ -20,6 +20,9 @@ class NodeGenerationConfig:
 
     classifier: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=40))
     research_step: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=800))
+    # SearchPlan (modules.query_rewriter) — до 5 списков полей + 2 опциональных года,
+    # с запасом на репертуар терминов длинного запроса.
+    query_rewrite: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=400))
     # Раздельные бюджеты: извлечение claims должно перечислить ВСЕ утверждения из полного
     # (иногда многостраничного) отчёта — 400 токенов на это не хватало, модель молча
     # возвращала пустой список; verdict/questions короткие по своей природе.
@@ -68,6 +71,11 @@ class AppConfig:
     grpc_port: int = 50051
     grpc_host: str = "localhost"
 
+    # Файловый лог каждой суммаризации (id, чанки, map-выжимки, финальный отчёт, тайминги) —
+    # тот же формат, что evaluation/ кладёт в artifacts/, один парсер на оба случая.
+    # Пустая строка отключает запись.
+    summarization_log_dir: str = "logs/summarizations"
+
     node_gen: NodeGenerationConfig = field(default_factory=NodeGenerationConfig)
 
     @classmethod
@@ -90,4 +98,5 @@ class AppConfig:
             embed_model_name=os.environ.get("APP_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
             grpc_port=int(os.environ.get("APP_GRPC_PORT", "50051")),
             grpc_host=os.environ.get("APP_GRPC_HOST", "localhost"),
+            summarization_log_dir=os.environ.get("APP_SUMMARIZATION_LOG_DIR", "logs/summarizations"),
         )

@@ -1,0 +1,61 @@
+suite: research_qa
+entry: app
+description: >
+  Research-цикл целиком (classifier -> research_step*). В отличие от summarization/
+  search_recall, здесь по умолчанию нет офлайн-фикстур (evaluation/fixtures/arxiv/) —
+  до того как они появятся, сьют бьёт по живому arXiv API и подчиняется его троттлингу
+  (см. modules/arxiv_source/rate_limit.py); на --offline упадёт с понятным сообщением.
+  reference_answer используется только там, где задан — включает coverage терминального
+  ответа против него (см. checks/research_step.py).
+
+metrics:
+  research_step:
+    terminal: [answer_relevancy, faithfulness]
+
+cases:
+  - id: rq-dropout
+    query: "что такое dropout и как он предотвращает переобучение?"
+    expected_intent: research
+    expected_sources: ["1207.0580"]  # Hinton et al., "Improving neural networks by preventing co-adaptation..."
+    max_iterations: 3
+
+  - id: rq-attention
+    query: "как работает механизм self-attention?"
+    expected_intent: research
+    expected_sources: ["1706.03762"]
+    max_iterations: 3
+
+  - id: rq-spectral-vs-kmeans
+    query: "чем спектральная кластеризация отличается от k-means?"
+    expected_intent: research
+    max_iterations: 3
+    reference_answer: |
+      Спектральная кластеризация строит граф сходства между объектами и работает с
+      собственными векторами лапласиана этого графа, что позволяет находить кластеры
+      произвольной формы в пространстве меньшей размерности. K-means же работает
+      напрямую в исходном признаковом пространстве и предполагает выпуклые
+      (в идеале — сферические) кластеры, что делает его хуже для сложных,
+      нелинейно разделимых структур данных, где спектральный подход выигрывает.
+
+  - id: rq-batchnorm-why
+    query: "почему батч-нормализация стабилизирует обучение нейросетей?"
+    expected_intent: research
+    expected_sources: ["1502.03167"]  # Ioffe & Szegedy, "Batch Normalization..."
+    max_iterations: 3
+
+  - id: rq-en-diffusion
+    query: "how do diffusion models generate images step by step?"
+    expected_intent: research
+    max_iterations: 3
+
+  - id: rq-english-transformer-vs-rnn
+    query: "why do transformers outperform RNNs on long sequences?"
+    expected_intent: research
+    expected_sources: ["1706.03762"]
+    max_iterations: 3
+
+  - id: rq-no-source-topic
+    query: "какие есть подходы к оценке галлюцинаций у LLM?"
+    expected_intent: research
+    max_iterations: 3
+    note: "открытый вопрос без единственного ожидаемого источника — только grounding/relevancy"

@@ -24,6 +24,11 @@ message ArticleCandidate {
   string abstract = 3;
 }
 
+message ChunkSummary {
+  string title = 1;    // заголовок раздела/чанка статьи
+  string summary = 2;  // map-выжимка этого раздела
+}
+
 message AskResponse {
   string final_answer = 1;
   string intent = 2;
@@ -33,6 +38,7 @@ message AskResponse {
   optional double faithfulness = 6;          // RAGAS, отсутствует если не считали
   optional double answer_relevancy = 7;      // RAGAS, отсутствует если не считали
   string error = 8;
+  repeated ChunkSummary map_summaries = 9;   // summarize: промежуточные выжимки Map-стадии по разделам
 }
 
 message HealthCheckRequest {}

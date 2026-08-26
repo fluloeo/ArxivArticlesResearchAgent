@@ -56,6 +56,12 @@ def render_response(response) -> None:
             for call in response.tool_calls:
                 st.code(call)
 
+    if response.map_summaries:
+        with st.expander("🧩 Промежуточные выжимки по разделам (Map-стадия)", expanded=False):
+            for chunk in response.map_summaries:
+                st.markdown(f"**{chunk.title}**")
+                st.caption(chunk.summary)
+
 
 st.title("📚 ArXiv Research Agent")
 st.caption("Суммаризация статей (Map-Reduce + RAGAS) и research-агент с function calling поверх arXiv API.")

@@ -1,0 +1,49 @@
+suite: search_recall
+entry: app
+stop_after: resolve_target_article
+description: >
+  recall@5/MRR узла resolve_target_article. Основная масса кейсов генерируется из
+  article_sample.json (запрос = реальное название статьи на английском — так найти её
+  проще всего, это верхняя граница качества). Явные кейсы ниже — то, что генератор
+  осознанно не покрывает: русские вопросы (сейчас находят ноль — recall@5=0 без
+  rewriter'а, метрика E2 из плана), явные ID/ссылки, старый формат ID.
+
+metrics: {}
+
+cases_from:
+  asset: article_sample.json
+  case_id_prefix: sr
+  query_from: title
+  limit: 50
+
+cases:
+  - id: sr-explicit-id
+    query: "перескажи статью 1706.03762"
+    expected_article_id: "1706.03762"
+    expects_explicit_id: true
+
+  - id: sr-explicit-url
+    query: "https://arxiv.org/abs/1706.03762"
+    expected_article_id: "1706.03762"
+    expects_explicit_id: true
+
+  - id: sr-explicit-old-style-id
+    query: "math/0702019"
+    expected_article_id: "math/0702019"
+    expects_explicit_id: true
+    note: "старый формат arXiv ID (regression-кейс §6.1: раньше не распознавался и портился в _parse_feed)"
+
+  # Русские формулировки того же запроса, что английский title-кейс генератора находит
+  # тривиально — сравнение до/после rewriter'а (E2 из плана).
+  - id: sr-ru-attention
+    query: "что такое механизм внимания в трансформерах?"
+    expected_article_id: "1706.03762"
+    note: "RU-вопрос без rewriter'а сейчас находит 0 — baseline для E2"
+
+  - id: sr-ru-topic-dropout
+    query: "регуляризация dropout в нейронных сетях"
+    note: "нет конкретного ожидаемого id в выборке — оцениваем непустоту/релевантность вручную"
+
+  - id: sr-ru-question-form
+    query: "чем спектральная кластеризация отличается от k-means?"
+    note: "вопросная форма — эвристика ti: не должна сработать (см. _looks_like_title)"

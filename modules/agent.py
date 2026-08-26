@@ -1,11 +1,15 @@
+import json
 import logging
+import time
 from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
 from .article_store import ArticleStore
-from .arxiv_source.search import extract_arxiv_id
+from .arxiv_source.identifiers import extract_arxiv_id
 from .config import NodeGenerationConfig
 from .llm.base import LLMProvider
 from .node_names import NodeName
@@ -74,6 +78,7 @@ class ArxivAgent:
         debug_mode: bool = False,
         max_research_iterations: int = 3,
         min_research_iterations: int = 1,
+        summarization_log_dir: Optional[str] = None,
     ):
         self.llm = llm
         self.toolkit = toolkit
@@ -88,6 +93,7 @@ class ArxivAgent:
         self.debug_mode = debug_mode
         self.max_research_iterations = max_research_iterations
         self.min_research_iterations = min_research_iterations
+        self.summarization_log_dir = summarization_log_dir or None
 
         self.app = self._build_graph()
         self.summarize_app = self._build_summarize_subgraph()
@@ -120,7 +126,7 @@ class ArxivAgent:
             logger.info("resolve_target_article: explicit arXiv ID %s in query", explicit_id)
             return {"target_article_id": explicit_id}
 
-        candidates = self.toolkit.search_client.search(query, max_results=self.toolkit.max_candidates)
+        candidates = self.toolkit.find_candidates(query)
         if not candidates:
             return {"final_answer": "Не удалось найти на arXiv статью, подходящую под ваш запрос."}
 
@@ -149,13 +155,55 @@ class ArxivAgent:
         return {"article_chunks": overlap_data}
 
     def map_reduce_summarize_node(self, state: AgentState) -> Dict[str, Any]:
+        t0 = time.perf_counter()
         report, chunk_summaries = self.sum_pipeline.run(
             state["article_chunks"],
             map_params=asdict(self.node_gen.summarization_map),
             reduce_params=asdict(self.node_gen.summarization_reduce),
         )
+        duration_s = time.perf_counter() - t0
         header = f"# {state.get('article_title', '')}\n🔗 [PDF]({state.get('article_pdf_url', '')})\n\n"
+        self._log_summarization(state, chunk_summaries, report, duration_s)
         return {"final_answer": header + report, "debug_data": chunk_summaries}
+
+    def _log_summarization(
+        self, state: AgentState, chunk_summaries: Dict[str, str], report: str, duration_s: float
+    ) -> None:
+        """Файловый лог каждой суммаризации — id, размеры чанков, map-выжимки, финальный
+        отчёт, параметры генерации, тайминги. Тот же набор полей, что evaluation/ кладёт
+        в artifacts/ (см. evaluation/runlog/run_writer.py), чтобы один парсер годился и для
+        продакшена, и для экспериментов. Отключается пустым summarization_log_dir."""
+        if not self.summarization_log_dir:
+            return
+        try:
+            chunks = state.get("article_chunks") or {}
+            article_id = state.get("target_article_id") or "unknown"
+            safe_id = article_id.replace("/", "-")  # старый формат ID содержит "/" — не путь
+            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+
+            record = {
+                "article_id": article_id,
+                "article_title": state.get("article_title", ""),
+                "article_pdf_url": state.get("article_pdf_url", ""),
+                "n_chunks": len(chunks),
+                "chunk_char_lengths": {title: len(c.get("main_text", "")) for title, c in chunks.items()},
+                "map_summaries": chunk_summaries,
+                "final_report": report,
+                "params": {
+                    "map": asdict(self.node_gen.summarization_map),
+                    "reduce": asdict(self.node_gen.summarization_reduce),
+                },
+                "duration_s": duration_s,
+                "logged_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+            log_dir = Path(self.summarization_log_dir)
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with open(log_dir / f"{safe_id}_{ts}.json", "w", encoding="utf-8") as f:
+                json.dump(record, f, ensure_ascii=False, indent=2)
+        except Exception:
+            # Логирование — вспомогательная функция; сбой записи не должен ломать сам ответ.
+            logger.exception("Не удалось записать лог суммаризации для %s", state.get("target_article_id"))
 
     def ragas_eval_node(self, state: AgentState) -> Dict[str, Any]:
         if self.debug_mode or not self.use_ragas or not state.get("compute_metrics", True):
