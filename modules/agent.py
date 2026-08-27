@@ -4,7 +4,7 @@ import time
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, Iterator, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -15,8 +15,8 @@ from .llm.base import LLMProvider
 from .node_names import NodeName
 from .processing import ArticleProcessor
 from .prompt_resolver import PromptResolver
-from .ragas_eval import RagasEvaluator
 from .schemas import ClassifierResult, ResearchDecision
+from .streaming import ChunkDoneEvent, FinalEvent, ProgressEvent, RateEstimator, StreamEvent, TextDeltaEvent
 from .structured_output import generate_structured
 from .summarization import SummarizationPipeline
 from .tools import ArxivToolkit
@@ -43,11 +43,6 @@ class AgentState(TypedDict, total=False):
     iterations: int
     sources: List[str]
 
-    # RAGAS (общее для обеих веток)
-    compute_metrics: bool
-    faithfulness: Optional[float]
-    answer_relevancy: Optional[float]
-
 
 class ArxivAgent:
     """LangGraph-агент: classifier -> {summarize | research | other}.
@@ -59,8 +54,9 @@ class ArxivAgent:
       достаточно ли ей знаний для ответа, либо вызывает search_arxiv/get_fulltext.
       Минимум `min_research_iterations` вызовов инструмента обязателен, прежде чем
       разрешён финальный ответ — иначе модель может ответить, ничего не проверив.
-    - Качество финального ответа (faithfulness/answer_relevancy) измеряется RAGAS-метриками
-      вместо прежнего узла критика — метрики не переписывают ответ, только оценивают его.
+    - Качество финального ответа (faithfulness/coverage/answer_relevancy) измеряется не
+      здесь, а офлайн-харнессом (evaluation/), поверх трассировки графа — см. README,
+      «Эксперименты и оценка качества».
     """
 
     def __init__(
@@ -73,8 +69,6 @@ class ArxivAgent:
         prompt_resolver: PromptResolver,
         prompts: Dict[str, Any],
         node_gen: NodeGenerationConfig,
-        ragas_evaluator: Optional[RagasEvaluator] = None,
-        use_ragas: bool = True,
         debug_mode: bool = False,
         max_research_iterations: int = 3,
         min_research_iterations: int = 1,
@@ -88,8 +82,6 @@ class ArxivAgent:
         self.prompt_resolver = prompt_resolver
         self.resolved_prompts = prompt_resolver.resolve_all(prompts)
         self.node_gen = node_gen
-        self.ragas_evaluator = ragas_evaluator
-        self.use_ragas = use_ragas and ragas_evaluator is not None
         self.debug_mode = debug_mode
         self.max_research_iterations = max_research_iterations
         self.min_research_iterations = min_research_iterations
@@ -204,43 +196,6 @@ class ArxivAgent:
         except Exception:
             # Логирование — вспомогательная функция; сбой записи не должен ломать сам ответ.
             logger.exception("Не удалось записать лог суммаризации для %s", state.get("target_article_id"))
-
-    def ragas_eval_node(self, state: AgentState) -> Dict[str, Any]:
-        if self.debug_mode or not self.use_ragas or not state.get("compute_metrics", True):
-            return {}
-
-        answer = state.get("final_answer", "")
-        if not answer:
-            return {}
-
-        context = self._collect_ragas_context(state)
-        scores = self.ragas_evaluator.evaluate(
-            question=self._ragas_question(state), answer=answer, context=context
-        )
-        return {"faithfulness": scores.faithfulness, "answer_relevancy": scores.answer_relevancy}
-
-    @staticmethod
-    def _ragas_question(state: AgentState) -> str:
-        """Answer relevancy сравнивает эмбеддинг вопроса с эмбеддингами вопросов, которые
-        LLM восстановила по ответу. В summarize-ветке «вопросом» был либо синтетический
-        `Summarize arXiv:1706.03762`, либо запрос пользователя вида «обзор статьи 1706.03762» —
-        в обоих случаях это по сути голый ID, у которого нет осмысленного эмбеддинга, и
-        метрика получалась заниженной независимо от качества обзора. Если известен заголовок
-        статьи, формулируем информационную потребность по-человечески."""
-        title = state.get("article_title")
-        if title and state.get("article_chunks"):
-            return f"О чём статья «{title}»? Сделай обзор её содержания и основных результатов."
-        return state.get("query", "")
-
-    @staticmethod
-    def _collect_ragas_context(state: AgentState) -> str:
-        chunks = state.get("article_chunks")
-        if chunks:
-            return "\n\n".join(chunk["main_text"] for chunk in chunks.values())
-        evidence = state.get("evidence")
-        if evidence:
-            return "\n\n".join(e["content"] for e in evidence)
-        return ""
 
     def research_step_node(self, state: AgentState) -> Dict[str, Any]:
         if self.debug_mode:
@@ -371,9 +326,9 @@ class ArxivAgent:
     # ---------------------------------------------------------------- graphs
 
     def _add_summarize_chain(self, wf: StateGraph) -> None:
-        """Общая часть графа summarize-пути: fetch -> process -> map-reduce -> ragas.
-        Используется и основным графом (после resolve_target_article), и отдельным
-        summarize_app (после явного выбора статьи пользователем)."""
+        """Общая часть графа summarize-пути: fetch -> process -> map-reduce. Используется
+        и основным графом (после resolve_target_article), и отдельным summarize_app
+        (после явного выбора статьи пользователем)."""
         wf.add_node(NodeName.FETCH_FULLTEXT.value, self.fetch_fulltext_node)
         wf.add_node(NodeName.PROCESS_AND_CHUNK.value, self.process_and_chunk_node)
         wf.add_node(NodeName.MAP_REDUCE_SUMMARIZE.value, self.map_reduce_summarize_node)
@@ -387,13 +342,7 @@ class ArxivAgent:
             {"ok": NodeName.PROCESS_AND_CHUNK.value, "stop": END},
         )
         wf.add_edge(NodeName.PROCESS_AND_CHUNK.value, NodeName.MAP_REDUCE_SUMMARIZE.value)
-
-        if self.use_ragas:
-            wf.add_node(NodeName.RAGAS_EVAL.value, self.ragas_eval_node)
-            wf.add_edge(NodeName.MAP_REDUCE_SUMMARIZE.value, NodeName.RAGAS_EVAL.value)
-            wf.add_edge(NodeName.RAGAS_EVAL.value, END)
-        else:
-            wf.add_edge(NodeName.MAP_REDUCE_SUMMARIZE.value, END)
+        wf.add_edge(NodeName.MAP_REDUCE_SUMMARIZE.value, END)
 
     def _build_summarize_subgraph(self):
         wf = StateGraph(AgentState)
@@ -440,38 +389,117 @@ class ArxivAgent:
         def route_after_research(state: AgentState) -> str:
             return "final" if state.get("final_answer") else "continue"
 
-        if self.use_ragas:
-            wf.add_conditional_edges(
-                NodeName.RESEARCH_STEP.value,
-                route_after_research,
-                {"final": NodeName.RAGAS_EVAL.value, "continue": NodeName.RESEARCH_STEP.value},
-            )
-        else:
-            wf.add_conditional_edges(
-                NodeName.RESEARCH_STEP.value,
-                route_after_research,
-                {"final": END, "continue": NodeName.RESEARCH_STEP.value},
-            )
+        wf.add_conditional_edges(
+            NodeName.RESEARCH_STEP.value,
+            route_after_research,
+            {"final": END, "continue": NodeName.RESEARCH_STEP.value},
+        )
 
         wf.add_edge(NodeName.OTHER_HANDLER.value, END)
 
         return wf.compile()
 
-    def invoke(self, query: str, compute_metrics: bool = True) -> Dict[str, Any]:
+    def invoke(self, query: str) -> Dict[str, Any]:
         # research_step — циклический узел, и каждая его итерация тратит шаг из общего
         # лимита рекурсии LangGraph (по умолчанию 25). При большом
         # max_research_iterations граф падал бы с GraphRecursionError раньше, чем
         # сработал бы собственный лимит агента.
         recursion_limit = max(25, self.max_research_iterations * 2 + 10)
-        return self.app.invoke(
-            {"query": query, "compute_metrics": compute_metrics},
-            config={"recursion_limit": recursion_limit},
-        )
+        return self.app.invoke({"query": query}, config={"recursion_limit": recursion_limit})
 
-    def summarize_article(self, article_id: str, compute_metrics: bool = True) -> Dict[str, Any]:
+    def summarize_article(self, article_id: str) -> Dict[str, Any]:
         """Суммаризация конкретной, уже выбранной пользователем статьи — минует
         classifier/resolve_target_article (ID уже известен, выбор уже сделан)."""
         query = f"Summarize arXiv:{article_id}"
-        return self.summarize_app.invoke(
-            {"query": query, "target_article_id": article_id, "compute_metrics": compute_metrics}
+        return self.summarize_app.invoke({"query": query, "target_article_id": article_id})
+
+    # ---------------------------------------------------------------- streaming
+
+    def _summarize_chain_stream(self, state: AgentState) -> Iterator[StreamEvent]:
+        """fetch -> chunk -> map-reduce, стримингом (state уже содержит target_article_id).
+        Вызывает те же node-методы, что и обычный граф, напрямую — см. modules/streaming.py
+        про то, почему не через LangGraph.stream()."""
+        t0 = time.perf_counter()
+        yield ProgressEvent(
+            stage="fetch_fulltext", message=f"Загружаю текст статьи {state.get('target_article_id')}…"
         )
+        state.update(self.fetch_fulltext_node(state))
+        if not state.get("raw_sections"):
+            yield FinalEvent(result=dict(state))
+            return
+
+        yield ProgressEvent(stage="process_and_chunk", message="Разбиваю статью на фрагменты…")
+        state.update(self.process_and_chunk_node(state))
+
+        chunks = state.get("article_chunks") or {}
+        yield ProgressEvent(
+            stage="map_reduce_summarize", message=f"Извлекаю факты из {len(chunks)} фрагментов…", total=len(chunks)
+        )
+
+        chunk_summaries: Dict[str, str] = {}
+        final_parts: List[str] = []
+        for event in self.sum_pipeline.run_stream(
+            chunks,
+            map_params=asdict(self.node_gen.summarization_map),
+            reduce_params=asdict(self.node_gen.summarization_reduce),
+        ):
+            if isinstance(event, ChunkDoneEvent):
+                chunk_summaries[event.title] = event.summary
+            elif isinstance(event, TextDeltaEvent):
+                final_parts.append(event.text)
+            yield event
+
+        report = "".join(final_parts)
+        header = f"# {state.get('article_title', '')}\n🔗 [PDF]({state.get('article_pdf_url', '')})\n\n"
+        state["final_answer"] = header + report
+        state["debug_data"] = chunk_summaries
+        self._log_summarization(state, chunk_summaries, report, time.perf_counter() - t0)
+        yield FinalEvent(result=dict(state))
+
+    def _research_stream(self, state: AgentState) -> Iterator[StreamEvent]:
+        rate = RateEstimator()
+        hard_cap = self.max_research_iterations + 3  # тот же запас, что recursion_limit в invoke()
+        for _ in range(hard_cap):
+            current_iter = state.get("iterations", 0)
+            yield ProgressEvent(
+                stage="research_step", message=f"Ищу и анализирую источники (шаг {current_iter + 1})…",
+                current=current_iter, total=self.max_research_iterations,
+                elapsed_s=rate.elapsed(), eta_s=rate.eta(current_iter, self.max_research_iterations),
+            )
+            delta = self.research_step_node(state)
+            state.update(delta)
+            if delta.get("final_answer") is not None:
+                break
+        yield FinalEvent(result=dict(state))
+
+    def invoke_stream(self, query: str) -> Iterator[StreamEvent]:
+        """Потоковый эквивалент invoke(): progress-события по ходу узлов + токены
+        reduce-стадии для summarize-ветки, финальный dict — тем же FinalEvent, что раньше
+        возвращал invoke() целиком (в т.ч. candidates, если explicit ID не нашёлся)."""
+        state: AgentState = {"query": query}
+
+        yield ProgressEvent(stage="classifier", message="Определяю тип запроса…")
+        state.update(self.classifier_node(state))
+        intent = state.get("intent")
+
+        if intent == "other":
+            state.update(self.other_node(state))
+            yield FinalEvent(result=dict(state))
+            return
+
+        if intent == "summarize":
+            yield ProgressEvent(stage="resolve_target_article", message="Ищу статью на arXiv…")
+            state.update(self.resolve_target_article_node(state))
+            if not state.get("target_article_id"):
+                yield FinalEvent(result=dict(state))
+                return
+            yield from self._summarize_chain_stream(state)
+            return
+
+        yield from self._research_stream(state)
+
+    def summarize_article_stream(self, article_id: str) -> Iterator[StreamEvent]:
+        """Потоковый эквивалент summarize_article()."""
+        query = f"Summarize arXiv:{article_id}"
+        state: AgentState = {"query": query, "target_article_id": article_id}
+        yield from self._summarize_chain_stream(state)

@@ -15,5 +15,4 @@ class NodeName(str, Enum):
     FETCH_FULLTEXT = "fetch_fulltext"
     PROCESS_AND_CHUNK = "process_and_chunk"
     MAP_REDUCE_SUMMARIZE = "map_reduce_summarize"
-    RAGAS_EVAL = "ragas_eval"
     RESEARCH_STEP = "research_step"

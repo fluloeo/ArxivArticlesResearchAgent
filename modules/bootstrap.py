@@ -10,7 +10,6 @@ from .local_prompts import load_local_prompts
 from .processing import ArticleProcessor
 from .prompt_resolver import PromptResolver
 from .query_rewriter import QueryRewriter
-from .ragas_eval import RagasEvaluator
 from .summarization import SummarizationPipeline
 from .tools import ArxivToolkit
 
@@ -46,20 +45,6 @@ def _build_llm_provider(config: AppConfig) -> LLMProvider:
     return _build_provider(config.llm_backend, config.mlx_model if config.llm_backend == "mlx" else config.openrouter_model, config)
 
 
-def _build_judge_provider(config: AppConfig, main_llm: LLMProvider) -> LLMProvider:
-    """LLM-as-a-judge для RAGAS. По умолчанию — тот же LLM, что отвечает пользователю;
-    можно указать отдельную модель (в т.ч. через API — OpenRouter), чтобы оценка не зависела
-    от той же модели, которую оценивает."""
-    if config.ragas_judge_backend == "same":
-        return main_llm
-
-    model_name = config.ragas_judge_model or (
-        config.mlx_model if config.ragas_judge_backend == "mlx" else config.openrouter_model
-    )
-    logger.info("Building separate RAGAS judge provider: backend=%s model=%s", config.ragas_judge_backend, model_name)
-    return _build_provider(config.ragas_judge_backend, model_name, config)
-
-
 def _tokenizer_for_chunking(provider: LLMProvider):
     return getattr(provider, "tokenizer", None) or _ApproxTokenizer()
 
@@ -74,16 +59,17 @@ def build_agent_with_provider(config: AppConfig, llm: LLMProvider) -> ArxivAgent
     Единая точка сборки — используется и grpc_service/server.py, и (опционально) ноутбуками,
     вместо того чтобы каждый раз вручную собирать зависимости в ячейках Kaggle-ноутбука.
     """
-    from langsmith import Client as LangSmithClient
+    ls_client: Optional[Any] = None
+    if config.use_hub:
+        from langsmith import Client as LangSmithClient
 
-    ls_client: Optional[Any] = LangSmithClient() if config.use_hub else None
+        ls_client = LangSmithClient()
     local_prompts = load_local_prompts()
 
     agent_prompt_resolver = PromptResolver(ls_client, local_prompts.get("agent", {}), use_hub=config.use_hub)
     summarization_prompt_resolver = PromptResolver(
         ls_client, local_prompts.get("summarization", {}), use_hub=config.use_hub
     )
-    ragas_prompt_resolver = PromptResolver(ls_client, local_prompts.get("ragas", {}), use_hub=config.use_hub)
 
     search_client = ArxivSearchClient()
     article_store = SqliteArxivArticleStore(config.cache_db_path, search_client=search_client)
@@ -117,22 +103,6 @@ def build_agent_with_provider(config: AppConfig, llm: LLMProvider) -> ArxivAgent
         prompt_resolver=summarization_prompt_resolver,
     )
 
-    ragas_evaluator = None
-    if config.use_ragas:
-        from sentence_transformers import SentenceTransformer
-
-        judge_llm = _build_judge_provider(config, llm)
-        embed_model = SentenceTransformer(config.embed_model_name)
-        ragas_evaluator = RagasEvaluator(
-            llm=judge_llm,
-            prompts=_hub_ref_map(["ragas_claims", "ragas_verdict", "ragas_questions"]),
-            prompt_resolver=ragas_prompt_resolver,
-            embed_model=embed_model,
-            claims_params=config.node_gen.ragas_claims,
-            verdict_params=config.node_gen.ragas_verdict,
-            questions_params=config.node_gen.ragas_questions,
-        )
-
     agent = ArxivAgent(
         llm=llm,
         toolkit=toolkit,
@@ -142,16 +112,12 @@ def build_agent_with_provider(config: AppConfig, llm: LLMProvider) -> ArxivAgent
         prompt_resolver=agent_prompt_resolver,
         prompts=_hub_ref_map(["classifier", "research_step"]),
         node_gen=config.node_gen,
-        ragas_evaluator=ragas_evaluator,
-        use_ragas=config.use_ragas,
         debug_mode=config.debug_mode,
         max_research_iterations=config.max_research_iterations,
         min_research_iterations=config.min_research_iterations,
         summarization_log_dir=config.summarization_log_dir,
     )
-    logger.info(
-        "ArxivAgent built: backend=%s use_ragas=%s use_hub=%s", config.llm_backend, config.use_ragas, config.use_hub
-    )
+    logger.info("ArxivAgent built: backend=%s use_hub=%s", config.llm_backend, config.use_hub)
     return agent
 
 

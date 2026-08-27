@@ -34,15 +34,15 @@ class ArxivAgentServiceStub:
         Args:
             channel: A grpc.Channel.
         """
-        self.Ask = channel.unary_unary(
+        self.Ask = channel.unary_stream(
                 '/arxiv_agent.ArxivAgentService/Ask',
                 request_serializer=arxiv__agent__pb2.AskRequest.SerializeToString,
-                response_deserializer=arxiv__agent__pb2.AskResponse.FromString,
+                response_deserializer=arxiv__agent__pb2.AskEvent.FromString,
                 _registered_method=True)
-        self.SummarizeArticle = channel.unary_unary(
+        self.SummarizeArticle = channel.unary_stream(
                 '/arxiv_agent.ArxivAgentService/SummarizeArticle',
                 request_serializer=arxiv__agent__pb2.SummarizeArticleRequest.SerializeToString,
-                response_deserializer=arxiv__agent__pb2.AskResponse.FromString,
+                response_deserializer=arxiv__agent__pb2.AskEvent.FromString,
                 _registered_method=True)
         self.HealthCheck = channel.unary_unary(
                 '/arxiv_agent.ArxivAgentService/HealthCheck',
@@ -55,7 +55,10 @@ class ArxivAgentServiceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def Ask(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Server-streaming: поток AskEvent, последний — всегда payload=final (AskResponse).
+        Раньше были unary (returns (AskResponse)) — граф исполняется минутами, и с unary
+        клиент видел ответ только целиком в конце; см. modules/streaming.py.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -75,15 +78,15 @@ class ArxivAgentServiceServicer:
 
 def add_ArxivAgentServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Ask': grpc.unary_unary_rpc_method_handler(
+            'Ask': grpc.unary_stream_rpc_method_handler(
                     servicer.Ask,
                     request_deserializer=arxiv__agent__pb2.AskRequest.FromString,
-                    response_serializer=arxiv__agent__pb2.AskResponse.SerializeToString,
+                    response_serializer=arxiv__agent__pb2.AskEvent.SerializeToString,
             ),
-            'SummarizeArticle': grpc.unary_unary_rpc_method_handler(
+            'SummarizeArticle': grpc.unary_stream_rpc_method_handler(
                     servicer.SummarizeArticle,
                     request_deserializer=arxiv__agent__pb2.SummarizeArticleRequest.FromString,
-                    response_serializer=arxiv__agent__pb2.AskResponse.SerializeToString,
+                    response_serializer=arxiv__agent__pb2.AskEvent.SerializeToString,
             ),
             'HealthCheck': grpc.unary_unary_rpc_method_handler(
                     servicer.HealthCheck,
@@ -112,12 +115,12 @@ class ArxivAgentService:
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(
+        return grpc.experimental.unary_stream(
             request,
             target,
             '/arxiv_agent.ArxivAgentService/Ask',
             arxiv__agent__pb2.AskRequest.SerializeToString,
-            arxiv__agent__pb2.AskResponse.FromString,
+            arxiv__agent__pb2.AskEvent.FromString,
             options,
             channel_credentials,
             insecure,
@@ -139,12 +142,12 @@ class ArxivAgentService:
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(
+        return grpc.experimental.unary_stream(
             request,
             target,
             '/arxiv_agent.ArxivAgentService/SummarizeArticle',
             arxiv__agent__pb2.SummarizeArticleRequest.SerializeToString,
-            arxiv__agent__pb2.AskResponse.FromString,
+            arxiv__agent__pb2.AskEvent.FromString,
             options,
             channel_credentials,
             insecure,

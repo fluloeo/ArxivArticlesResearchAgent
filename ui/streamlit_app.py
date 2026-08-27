@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from typing import Iterator, Optional
 
 import grpc
 import streamlit as st
@@ -17,6 +18,48 @@ GRPC_PORT = os.environ.get("APP_GRPC_PORT", "50051")
 
 st.set_page_config(page_title="ArXiv Research Agent", page_icon="📚", layout="centered")
 
+# Точечный CSS поверх дефолтной темы Streamlit — своих виджетов не заменяет (текстовые
+# поля/кнопки/статус остаются нативными компонентами Streamlit ради стриминга и состояния),
+# только визуальная полировка: типографика, hero-баннер, скругления, акцентный цвет.
+st.markdown(
+    """
+<style>
+html, body, [class*="css"] { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+.hero {
+    display: flex; align-items: center; gap: 0.9rem;
+    padding: 1.1rem 1.4rem; margin-bottom: 1.1rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 55%, #0ea5e9 100%);
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.25);
+}
+.hero-icon { font-size: 2.4rem; line-height: 1; }
+.hero h1 { color: #fff; font-size: 1.5rem; margin: 0 0 0.15rem 0; font-weight: 700; }
+.hero p { color: rgba(255,255,255,0.9); margin: 0; font-size: 0.92rem; }
+
+.stButton > button {
+    border-radius: 10px; font-weight: 600; border: none;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.stButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25); }
+.stButton > button[kind="primary"] { background: linear-gradient(135deg, #4338ca, #6366f1); }
+
+div[data-testid="stTextInput"] input {
+    border-radius: 10px;
+}
+
+div[data-testid="stExpander"], div[data-baseweb="accordion"] {
+    border-radius: 12px !important; overflow: hidden;
+}
+
+.streaming-cursor { opacity: 0.55; }
+
+footer, #MainMenu { visibility: hidden; }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 
 @st.cache_resource
 def get_stub():
@@ -24,105 +67,148 @@ def get_stub():
     return arxiv_agent_pb2_grpc.ArxivAgentServiceStub(channel)
 
 
-def call_rpc(fn, *args, **kwargs):
+def _fmt_duration(seconds: Optional[float]) -> str:
+    if seconds is None or seconds < 0:
+        return "…"
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}с"
+    m, s = divmod(seconds, 60)
+    return f"{m}м {s:02d}с"
+
+
+def _progress_line(progress) -> str:
+    """Строка в духе tqdm: при известном total — счётчик, процент и ETA по уже
+    накопленному темпу; иначе — просто прошедшее время (для стадий без внутреннего цикла,
+    например fetch_fulltext)."""
+    if progress.total > 0:
+        pct = 100 * progress.current / progress.total
+        eta = _fmt_duration(progress.eta_s) if progress.eta_s >= 0 else "оцениваю…"
+        return f"{progress.message} — {progress.current}/{progress.total} ({pct:.0f}%) · осталось ~{eta}"
+    return f"{progress.message} · {_fmt_duration(progress.elapsed_s)} прошло"
+
+
+def stream_response(rpc_iter: Iterator, status_label: str):
+    """Итерирует server-streaming RPC (AskEvent), обновляя UI по ходу: живой статус-лог с
+    прогрессом/ETA (аналог tqdm), печатающийся по мере готовности финальный текст, список
+    map-выжимок по готовности. Возвращает финальный AskResponse либо None при ошибке
+    (уже показанной пользователю)."""
+    status = st.status(status_label, expanded=True)
+    answer_placeholder = st.empty()
+    map_expander = st.expander("🧩 Промежуточные выжимки по разделам (Map-стадия)", expanded=False)
+
+    answer_text = ""
+    final_response = None
     try:
-        return fn(*args, **kwargs), None
+        for event in rpc_iter:
+            kind = event.WhichOneof("payload")
+            if kind == "progress":
+                line = _progress_line(event.progress)
+                status.update(label=line)
+                status.write(line)
+            elif kind == "delta":
+                answer_text += event.delta.text
+                answer_placeholder.markdown(answer_text + ' <span class="streaming-cursor">▌</span>', unsafe_allow_html=True)
+            elif kind == "map_summary":
+                chunk = event.map_summary
+                with map_expander:
+                    st.markdown(f"**{chunk.title}**")
+                    st.caption(chunk.summary)
+            elif kind == "final":
+                final_response = event.final
     except grpc.RpcError as e:
+        status.update(label="Ошибка соединения", state="error")
         detail = e.details() if hasattr(e, "details") else str(e)
-        return None, f"gRPC-бэкенд недоступен или вернул ошибку: {detail}\n\nЗапущен ли `python -m grpc_service.server`?"
+        st.error(f"gRPC-бэкенд недоступен или вернул ошибку: {detail}\n\nЗапущен ли `python -m grpc_service.server`?")
+        return None
+
+    if final_response is None:
+        status.update(label="Поток завершился без ответа", state="error")
+        st.error("Сервер закрыл соединение, не прислав финальный ответ.")
+        return None
+
+    if final_response.error:
+        status.update(label="Ошибка агента", state="error")
+        answer_placeholder.empty()
+        st.error(final_response.error)
+        return final_response
+
+    status.update(label="Готово", state="complete", expanded=False)
+    if final_response.final_answer:
+        answer_placeholder.markdown(final_response.final_answer)
+    else:
+        answer_placeholder.empty()
+    return final_response
 
 
-def render_response(response) -> None:
-    if response.error:
-        st.error(response.error)
-        return
-
-    st.markdown(response.final_answer)
-
+def render_extras(response) -> None:
     if response.sources:
         with st.expander("📎 Источники", expanded=True):
             for source in response.sources:
                 st.write("-", source)
-
-    if response.HasField("faithfulness") or response.HasField("answer_relevancy"):
-        with st.expander("📊 RAGAS-метрики"):
-            if response.HasField("faithfulness"):
-                st.metric("Faithfulness", f"{response.faithfulness:.2f}")
-            if response.HasField("answer_relevancy"):
-                st.metric("Answer Relevancy", f"{response.answer_relevancy:.2f}")
-
     if response.tool_calls:
         with st.expander("🛠️ Вызовы инструментов (function calling)"):
             for call in response.tool_calls:
                 st.code(call)
 
-    if response.map_summaries:
-        with st.expander("🧩 Промежуточные выжимки по разделам (Map-стадия)", expanded=False):
-            for chunk in response.map_summaries:
-                st.markdown(f"**{chunk.title}**")
-                st.caption(chunk.summary)
 
-
-st.title("📚 ArXiv Research Agent")
-st.caption("Суммаризация статей (Map-Reduce + RAGAS) и research-агент с function calling поверх arXiv API.")
+st.markdown(
+    '<div class="hero"><span class="hero-icon">📚</span>'
+    "<div><h1>ArXiv Research Agent</h1>"
+    "<p>Суммаризация статей (Map-Reduce) и research-агент с function calling поверх arXiv API.</p></div></div>",
+    unsafe_allow_html=True,
+)
 
 if "pending_candidates" not in st.session_state:
     st.session_state.pending_candidates = None
 
-query = st.text_input(
-    "Ваш запрос", placeholder="Например: «сделай обзор статьи 1706.03762» или «что такое dropout?»"
-)
-compute_metrics = st.checkbox(
-    "Считать RAGAS-метрики (faithfulness / answer relevancy)",
-    value=True,
-    help="Требует дополнительных LLM-вызовов (разбор ответа на утверждения + проверка каждого "
-    "по контексту) — заметно увеличивает время ответа. Выключите для более быстрого ответа.",
-)
-ask_clicked = st.button("Спросить", type="primary")
+with st.container(border=True):
+    query = st.text_input(
+        "Ваш запрос",
+        placeholder="Например: «сделай обзор статьи 1706.03762» или «что такое dropout?»",
+        label_visibility="collapsed",
+    )
+    ask_clicked = st.button("Спросить →", type="primary", use_container_width=True)
 
 if ask_clicked and not query.strip():
     st.warning("Введите запрос.")
-
 elif ask_clicked:
     stub = get_stub()
-    with st.spinner("Агент работает — это может занять несколько минут (поиск/загрузка статей, генерация, RAGAS)..."):
-        response, error = call_rpc(
-            stub.Ask, arxiv_agent_pb2.AskRequest(query=query, skip_metrics=not compute_metrics), timeout=900
-        )
-
-    if error:
-        st.error(error)
-        st.session_state.pending_candidates = None
-    elif response.candidates:
-        st.session_state.pending_candidates = list(response.candidates)
-    else:
-        st.session_state.pending_candidates = None
-        render_response(response)
+    st.session_state.pending_candidates = None
+    response = stream_response(
+        stub.Ask(arxiv_agent_pb2.AskRequest(query=query), timeout=900), "Агент запускается…"
+    )
+    if response and not response.error:
+        if response.candidates:
+            st.session_state.pending_candidates = list(response.candidates)
+        else:
+            render_extras(response)
 
 if st.session_state.pending_candidates:
     st.subheader("Нашёл несколько статей — выберите, какую суммаризировать:")
     candidates = st.session_state.pending_candidates
     labels = [f"{c.arxiv_id}: {c.title}" for c in candidates]
     choice_idx = st.radio(
-        "Статьи",
-        options=range(len(candidates)),
-        format_func=lambda i: labels[i],
-        label_visibility="collapsed",
+        "Статьи", options=range(len(candidates)), format_func=lambda i: labels[i], label_visibility="collapsed"
     )
-    abstract = candidates[choice_idx].abstract
-    st.caption(abstract[:400] + "…" if len(abstract) > 400 else abstract)
+    with st.container(border=True):
+        st.markdown("**Abstract**")
+        st.write(candidates[choice_idx].abstract)
 
-    if st.button("Суммаризировать выбранную статью", type="primary"):
+    if st.button("Суммаризировать выбранную статью", type="primary", use_container_width=True):
         stub = get_stub()
         chosen_id = candidates[choice_idx].arxiv_id
-        with st.spinner(f"Суммаризирую {chosen_id} — это может занять несколько минут..."):
-            response, error = call_rpc(
-                stub.SummarizeArticle,
-                arxiv_agent_pb2.SummarizeArticleRequest(article_id=chosen_id, skip_metrics=not compute_metrics),
-                timeout=900,
-            )
         st.session_state.pending_candidates = None
-        if error:
-            st.error(error)
-        else:
-            render_response(response)
+        response = stream_response(
+            stub.SummarizeArticle(arxiv_agent_pb2.SummarizeArticleRequest(article_id=chosen_id), timeout=900),
+            f"Суммаризирую {chosen_id}…",
+        )
+        if response and not response.error:
+            render_extras(response)
+
+st.markdown(
+    '<p style="text-align:center; opacity:0.5; font-size:0.8rem; margin-top:2rem;">'
+    "Ответ формируется потоково — узел за узлом, токен за токеном на стадии синтеза отчёта."
+    "</p>",
+    unsafe_allow_html=True,
+)

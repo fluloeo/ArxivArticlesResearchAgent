@@ -1,10 +1,12 @@
 """ExperimentRunner — связывает вместе dataset (Suite/EvalCase), tracing (GraphRecorder),
-checks (детерминированные проверки) и runlog (RunWriter) в один прогон сьюта.
+checks (детерминированные проверки), metrics (MetricsRunner, опционально) и runlog
+(RunWriter) в один прогон сьюта.
 
-Метрики (faithfulness/coverage/answer_relevancy, evaluation/metrics/) в этой версии ЕЩЁ
-НЕ подключены — по плану (шаг 3) харнесс сначала должен работать и приносить пользу на
-одних только детерминированных проверках, которые стоят ноль LLM-вызовов судьи; метрики
-добавляются отдельным шагом (evaluation/metrics/), не блокируя эту часть.
+Метрики (faithfulness/coverage/answer_relevancy) подключаются, только если вызывающий код
+передал `metrics_runner` — по плану (шаг 3) харнесс должен работать и приносить пользу на
+одних только детерминированных проверках (ноль LLM-вызовов судьи) без Judge вовсе; Judge
+требует явного --judge-model (см. evaluation/metrics/judge.py — харнесс не предлагает
+"same as main model" шорткот, самосудейство обесценивает сравнение моделей).
 """
 import logging
 from dataclasses import dataclass
@@ -12,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from evaluation.checks import CHECKS, CheckContext, check_graph_level
 from evaluation.dataset.case import EvalCase, Suite
+from evaluation.metrics_runner import MetricsRunner
 from evaluation.runlog.run_writer import RunWriter
 from evaluation.tracing.provider_wrapper import RecordingProvider
 from evaluation.tracing.recorder import GraphRecorder
@@ -49,19 +52,21 @@ class ExperimentRunner:
         context: CheckContext,
         writer: RunWriter,
         recording_provider: Optional[RecordingProvider] = None,
+        metrics_runner: Optional[MetricsRunner] = None,
         max_visits: int = 200,
     ):
         self.agent = agent
         self.context = context
         self.writer = writer
         self.recording_provider = recording_provider
+        self.metrics_runner = metrics_runner
         self.max_visits = max_visits
         self._recorders = {
             "app": GraphRecorder(agent.app, "app"),
             "summarize_app": GraphRecorder(agent.summarize_app, "summarize_app"),
         }
 
-    def run_case(self, case: EvalCase) -> CaseOutcome:
+    def run_case(self, case: EvalCase, suite: Suite) -> CaseOutcome:
         recorder = self._recorders[case.entry]
         if self.recording_provider is not None:
             self.recording_provider.sink.calls.clear()
@@ -85,6 +90,12 @@ class ExperimentRunner:
         failed = sum(1 for *_x, r in check_results if not r.passed and r.severity == "error")
         warned = sum(1 for *_x, r in check_results if not r.passed and r.severity == "warning")
 
+        if self.metrics_runner is not None and suite.metrics and not trace.terminal_error:
+            try:
+                self.metrics_runner.run_case(trace, case, suite, self.writer)
+            except Exception:
+                logger.exception("Кейс %s: сбой при подсчёте метрик (checks уже записаны)", case.case_id)
+
         self.writer.write_case(case.case_id, trace, [r for *_x, r in check_results], scores={})
 
         if trace.terminal_error:
@@ -102,7 +113,7 @@ class ExperimentRunner:
         for i, case in enumerate(cases, 1):
             logger.info("[%d/%d] %s: %s", i, len(cases), case.case_id, case.query[:60])
             try:
-                outcomes.append(self.run_case(case))
+                outcomes.append(self.run_case(case, suite))
             except Exception:
                 logger.exception("Кейс %s упал вне графа (bug в самом харнессе)", case.case_id)
         return outcomes

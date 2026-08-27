@@ -1,6 +1,7 @@
 import logging
+import queue
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List
 
 from .base import Conversation, LLMProvider
 
@@ -78,3 +79,42 @@ class MLXProvider(LLMProvider):
                 text = ""
             results.append(text)
         return results
+
+    def generate_stream(self, conversation: Conversation, sampling_params: Dict[str, Any]) -> Iterator[str]:
+        """Токенный стриминг через mlx_lm.stream_generate (`generate()` внутри mlx_lm сам
+        реализован как накопление этого же генератора — см. mlx_lm/generate.py) — тот же
+        сэмплер/пенальти, что и в generate(), только текст отдаётся по мере готовности.
+        Должен выполняться на том же выделенном mlx-потоке, что и обычный generate()
+        (см. docstring класса — mlx_lm привязывает Metal generation stream к потоку первого
+        импорта), поэтому сама генерация идёт в фоновой задаче на self._executor, а наружу
+        отдаётся через thread-safe очередь."""
+        q: "queue.Queue[Any]" = queue.Queue()
+        _SENTINEL = object()
+
+        def _produce() -> None:
+            from mlx_lm import stream_generate
+            from mlx_lm.sample_utils import make_logits_processors, make_sampler
+
+            sampler = make_sampler(temp=sampling_params.get("temperature", 0.0))
+            max_tokens = sampling_params.get("max_tokens", 1024)
+            penalty = sampling_params.get("frequency_penalty") or None
+            logits_processors = make_logits_processors(repetition_penalty=penalty) if penalty else None
+            prompt = self._format_prompt(conversation)
+            try:
+                for response in stream_generate(
+                    self.model, self.tokenizer, prompt,
+                    max_tokens=max_tokens, sampler=sampler, logits_processors=logits_processors,
+                ):
+                    if response.text:
+                        q.put(response.text)
+            except Exception:
+                logger.exception("MLX streaming generation failed for prompt of length %d", len(prompt))
+            finally:
+                q.put(_SENTINEL)
+
+        self._executor.submit(_produce)
+        while True:
+            item = q.get()
+            if item is _SENTINEL:
+                return
+            yield item

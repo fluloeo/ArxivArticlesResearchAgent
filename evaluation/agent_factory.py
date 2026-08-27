@@ -3,11 +3,9 @@
   1. коллабораторы (article_store, search_client) подменяемы — offline=True подставляет
      InMemoryArticleStore/FrozenSearchClient (evaluation.dataset.offline_store), офлайн-
      сьюты (summarization) не бьют по сети и не троттлятся;
-  2. НЕ собирает RagasEvaluator/SentenceTransformer — измерение качества (faithfulness/
-     coverage/answer_relevancy) в харнессе отдельный слой (evaluation/metrics/), поверх
-     GraphTrace, а не узел графа. `use_ragas=False` уже сегодня убирает ragas_eval из
-     обоих скомпилированных графов агента (config-level no-op) — сборка здесь просто не
-     тратит время и память на sentence-transformers/torch вовсе.
+  2. измерение качества (faithfulness/coverage/answer_relevancy) — не узел графа агента
+     вовсе (см. modules/agent.py — RAGAS удалён из инференс-пути), а отдельный слой
+     харнесса (evaluation/metrics_runner.py) поверх GraphTrace.
 
 modules.bootstrap не переиспользуется напрямую (build_agent_with_provider жёстко
 собирает SqliteArxivArticleStore/ArxivSearchClient) — здесь минимальное преднамеренное
@@ -109,8 +107,6 @@ def build_agent_for_eval(
         prompt_resolver=agent_resolver,
         prompts={"classifier": "classifier", "research_step": "research_step"},
         node_gen=config.node_gen,
-        ragas_evaluator=None,
-        use_ragas=False,
         debug_mode=config.debug_mode,
         max_research_iterations=config.max_research_iterations,
         min_research_iterations=config.min_research_iterations,

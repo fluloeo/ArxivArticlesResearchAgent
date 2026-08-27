@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List
 
 from openai import OpenAI
 
@@ -42,3 +42,21 @@ class OpenRouterProvider(LLMProvider):
                 logger.exception("OpenRouter generation failed")
                 results.append(f"Error: {e}")
         return results
+
+    def generate_stream(self, conversation: Conversation, sampling_params: Dict[str, Any]) -> Iterator[str]:
+        try:
+            stream = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=list(conversation),
+                temperature=sampling_params.get("temperature", 0),
+                max_tokens=sampling_params.get("max_tokens", 1024),
+                frequency_penalty=sampling_params.get("frequency_penalty", 0.0),
+                extra_body={"include_reasoning": False},
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if delta:
+                    yield delta
+        except Exception:
+            logger.exception("OpenRouter streaming generation failed")

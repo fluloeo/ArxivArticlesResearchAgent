@@ -23,12 +23,6 @@ class NodeGenerationConfig:
     # SearchPlan (modules.query_rewriter) — до 5 списков полей + 2 опциональных года,
     # с запасом на репертуар терминов длинного запроса.
     query_rewrite: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=400))
-    # Раздельные бюджеты: извлечение claims должно перечислить ВСЕ утверждения из полного
-    # (иногда многостраничного) отчёта — 400 токенов на это не хватало, модель молча
-    # возвращала пустой список; verdict/questions короткие по своей природе.
-    ragas_claims: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=1200))
-    ragas_verdict: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=200))
-    ragas_questions: GenerationParams = field(default_factory=lambda: GenerationParams(max_tokens=300))
     summarization_map: GenerationParams = field(
         default_factory=lambda: GenerationParams(temperature=0.15, max_tokens=2048, frequency_penalty=1.2)
     )
@@ -49,20 +43,13 @@ class AppConfig:
     openrouter_model: str = "qwen/qwen3-30b-a3b-instruct-2507"
 
     use_hub: bool = False
-    use_ragas: bool = True  # глобальный дефолт; можно переопределить на запрос (skip_metrics в gRPC)
     debug_mode: bool = False
-
-    # LLM-as-a-judge для RAGAS может отличаться от основной модели, отвечающей пользователю —
-    # "same" переиспользует основной LLM (дефолт), "openrouter"/"mlx" — отдельная модель-судья.
-    ragas_judge_backend: Literal["same", "mlx", "openrouter"] = "same"
-    ragas_judge_model: Optional[str] = None
 
     cache_db_path: str = "data/arxiv_cache.sqlite"
     arxiv_search_max_candidates: int = 5
     max_research_iterations: int = 3
     min_research_iterations: int = 1
     fulltext_excerpt_chars: int = 4000
-    embed_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     min_chunk_tokens: int = 700
     max_chunk_tokens: int = 2000
@@ -86,16 +73,12 @@ class AppConfig:
             openrouter_api_key=os.environ.get("OPENROUTER_API_KEY"),
             openrouter_model=os.environ.get("APP_OPENROUTER_MODEL", "qwen/qwen3-30b-a3b-instruct-2507"),
             use_hub=os.environ.get("APP_USE_HUB", "false").lower() == "true",
-            use_ragas=os.environ.get("APP_USE_RAGAS", "true").lower() == "true",
-            ragas_judge_backend=os.environ.get("APP_RAGAS_JUDGE_BACKEND", "same"),  # type: ignore[arg-type]
-            ragas_judge_model=os.environ.get("APP_RAGAS_JUDGE_MODEL"),
             debug_mode=os.environ.get("APP_DEBUG_MODE", "false").lower() == "true",
             cache_db_path=os.environ.get("APP_CACHE_DB_PATH", "data/arxiv_cache.sqlite"),
             arxiv_search_max_candidates=int(os.environ.get("APP_ARXIV_MAX_CANDIDATES", "5")),
             max_research_iterations=int(os.environ.get("APP_MAX_RESEARCH_ITERATIONS", "3")),
             min_research_iterations=int(os.environ.get("APP_MIN_RESEARCH_ITERATIONS", "1")),
             fulltext_excerpt_chars=int(os.environ.get("APP_FULLTEXT_EXCERPT_CHARS", "4000")),
-            embed_model_name=os.environ.get("APP_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
             grpc_port=int(os.environ.get("APP_GRPC_PORT", "50051")),
             grpc_host=os.environ.get("APP_GRPC_HOST", "localhost"),
             summarization_log_dir=os.environ.get("APP_SUMMARIZATION_LOG_DIR", "logs/summarizations"),

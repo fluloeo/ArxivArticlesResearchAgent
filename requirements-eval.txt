@@ -1,0 +1,10 @@
+# Только для evaluation/ (офлайн-харнесс: checks/metrics/reporting) — не нужны на
+# инференсе (см. requirements.txt). Устанавливать поверх requirements.txt:
+#   pip install -r requirements.txt -r requirements-eval.txt
+-r requirements.txt
+
+# answer_relevancy (evaluation/metrics/answer_relevancy.py) — эмбеддинги
+sentence-transformers
+
+# evaluation/reporting/ — сравнение прогонов
+pandas

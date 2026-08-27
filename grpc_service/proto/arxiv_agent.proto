@@ -3,19 +3,24 @@ syntax = "proto3";
 package arxiv_agent;
 
 service ArxivAgentService {
-  rpc Ask(AskRequest) returns (AskResponse);
-  rpc SummarizeArticle(SummarizeArticleRequest) returns (AskResponse);
+  // Server-streaming: поток AskEvent, последний — всегда payload=final (AskResponse).
+  // Раньше были unary (returns (AskResponse)) — граф исполняется минутами, и с unary
+  // клиент видел ответ только целиком в конце; см. modules/streaming.py.
+  rpc Ask(AskRequest) returns (stream AskEvent);
+  rpc SummarizeArticle(SummarizeArticleRequest) returns (stream AskEvent);
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
 }
 
 message AskRequest {
+  reserved 2;  // было skip_metrics — метрики качества больше не считаются на инференсе,
+               // см. evaluation/ (номер не переиспользуется, чтобы старый клиент не
+               // разобрал чужое поле как валидное)
   string query = 1;
-  bool skip_metrics = 2;  // true = не считать RAGAS faithfulness/answer_relevancy (быстрее)
 }
 
 message SummarizeArticleRequest {
+  reserved 2;  // было skip_metrics, см. AskRequest
   string article_id = 1;
-  bool skip_metrics = 2;
 }
 
 message ArticleCandidate {
@@ -30,15 +35,37 @@ message ChunkSummary {
 }
 
 message AskResponse {
+  reserved 6, 7;  // были faithfulness/answer_relevancy (RAGAS) — метрики качества
+  reserved "faithfulness", "answer_relevancy";  // измеряются офлайн-харнессом (evaluation/), не на инференсе
   string final_answer = 1;
   string intent = 2;
   repeated ArticleCandidate candidates = 3;  // summarize без явного ID: статьи на выбор пользователю
   repeated string sources = 4;               // research: статьи, на которые опирается ответ
   repeated string tool_calls = 5;
-  optional double faithfulness = 6;          // RAGAS, отсутствует если не считали
-  optional double answer_relevancy = 7;      // RAGAS, отсутствует если не считали
   string error = 8;
   repeated ChunkSummary map_summaries = 9;   // summarize: промежуточные выжимки Map-стадии по разделам
+}
+
+message ProgressUpdate {
+  string stage = 1;    // modules.node_names.NodeName либо "map_reduce_summarize"/"research_step" итерация
+  string message = 2;  // человекочитаемое сообщение для UI
+  int32 current = 3;
+  int32 total = 4;     // 0 = неизвестно (UI показывает неопределённый прогресс)
+  double elapsed_s = 5;
+  double eta_s = 6;    // -1 = неизвестно (ещё не накоплено данных для оценки)
+}
+
+message TextDelta {
+  string text = 1;  // добавочный фрагмент final_answer (сейчас — только reduce-стадия суммаризации)
+}
+
+message AskEvent {
+  oneof payload {
+    ProgressUpdate progress = 1;
+    TextDelta delta = 2;
+    ChunkSummary map_summary = 3;  // одна законченная map-выжимка, стримится по готовности
+    AskResponse final = 4;         // последнее сообщение в потоке, ровно одно
+  }
 }
 
 message HealthCheckRequest {}
