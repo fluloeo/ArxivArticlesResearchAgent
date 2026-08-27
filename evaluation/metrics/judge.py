@@ -73,7 +73,16 @@ def build_judge(config: JudgeConfig) -> Judge:
     # Судья строится через тот же _build_provider/build_llm_provider, что и основная
     # модель, — тем же путём (без RecordingProvider, судье не нужна трассировка узлов
     # графа, у него нет узла).
-    app_config = AppConfig(llm_backend=config.backend, mlx_model=config.model, openrouter_model=config.model)
+    # openrouter_api_key берём из окружения явно: AppConfig() напрямую (не через
+    # .from_env()) не читает .env вовсе, так что --judge-backend openrouter молча падал с
+    # "OpenRouterProvider требует OPENROUTER_API_KEY", даже когда ключ был в .env и
+    # прекрасно подхватывался основной моделью агента.
+    app_config = AppConfig(
+        llm_backend=config.backend,
+        mlx_model=config.model,
+        openrouter_model=config.model,
+        openrouter_api_key=AppConfig.from_env().openrouter_api_key,
+    )
     llm = build_llm_provider(app_config, record_llm_io=False)
 
     local_prompts = load_local_prompts_with_judge()

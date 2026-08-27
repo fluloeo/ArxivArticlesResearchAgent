@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterator, List, TypedDict
+from typing import Any, Dict, Iterator, List, Tuple, TypedDict
 
 
 class ChatMessage(TypedDict):
@@ -30,3 +30,17 @@ class LLMProvider(ABC):
         (VLLMProvider) и для RecordingProvider (харнесс не стримит вовсе, но не должен падать,
         если что-то мимоходом позовёт generate_stream)."""
         yield self.generate([conversation], sampling_params)[0]
+
+    def generate_as_completed(
+        self, conversations: List[Conversation], sampling_params: Dict[str, Any]
+    ) -> Iterator[Tuple[int, str]]:
+        """Как generate(), но отдаёт (исходный_индекс, текст) по мере готовности КАЖДОГО
+        элемента, а не всем списком в конце — для прогресса на длинных батчах (map-стадия
+        суммаризации: N чанков статьи). Индекс — позиция в исходном `conversations`, не
+        порядок готовности (важно для параллельных бэкендов, где элементы завершаются не
+        по порядку). Дефолт — просто последовательный generate() по одному элементу, в
+        порядке входа: корректный, но не параллельный фолбэк для бэкендов без реальной
+        конкурентности (MLX — одна локальная модель, VLLMProvider, RecordingProvider).
+        OpenRouterProvider переопределяет это по-настоящему параллельно (asyncio)."""
+        for i, conversation in enumerate(conversations):
+            yield i, self.generate([conversation], sampling_params)[0]

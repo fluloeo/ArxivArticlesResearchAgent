@@ -12,6 +12,7 @@ save_artifacts=True.
 import hashlib
 import json
 import logging
+import threading
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -103,6 +104,10 @@ class RunWriter:
             name: open(self.run_dir / f"{name}.jsonl", "a", encoding="utf-8")
             for name in ("nodes", "checks", "metrics", "events", "cases")
         }
+        # Пул кейсов при --case-workers>1 (evaluation/runner.py::run_suite_concurrent)
+        # пишет в один и тот же writer из нескольких потоков — без лока f.write() из
+        # разных потоков может интерливиться и дать битую строку JSONL.
+        self._lock = threading.Lock()
 
         self.manifest: Dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
@@ -125,8 +130,10 @@ class RunWriter:
 
     def _write_jsonl(self, name: str, row: Dict[str, Any]) -> None:
         f = self._files[name]
-        f.write(json.dumps({"schema_version": SCHEMA_VERSION, "run_id": self.run_id, **row}, ensure_ascii=False) + "\n")
-        f.flush()
+        line = json.dumps({"schema_version": SCHEMA_VERSION, "run_id": self.run_id, **row}, ensure_ascii=False) + "\n"
+        with self._lock:
+            f.write(line)
+            f.flush()
 
     def write_node_visit(self, case_id: str, visit: NodeVisit) -> None:
         self._write_jsonl(
@@ -220,7 +227,7 @@ class RunWriter:
     def _save_artifact(self, case_id: str, filename: str, content: Any) -> None:
         case_dir = self.artifacts_dir / case_id
         case_dir.mkdir(parents=True, exist_ok=True)
-        with open(case_dir / filename, "w", encoding="utf-8") as f:
+        with self._lock, open(case_dir / filename, "w", encoding="utf-8") as f:
             json.dump(content, f, ensure_ascii=False, indent=2, default=str)
 
     # ------------------------------------------------------------------ lifecycle

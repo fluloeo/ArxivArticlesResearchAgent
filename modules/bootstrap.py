@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 
 from .agent import ArxivAgent
 from .article_store import SqliteArxivArticleStore
+from .arxiv_source.rate_limit import RateLimiter
 from .arxiv_source.search import ArxivSearchClient
 from .config import AppConfig
 from .llm.base import LLMProvider
@@ -33,7 +34,11 @@ def _build_provider(backend: str, model_name: str, config: AppConfig) -> LLMProv
     if backend == "openrouter":
         from .llm.openrouter_provider import OpenRouterProvider
 
-        return OpenRouterProvider(api_key=config.openrouter_api_key or "", model_name=model_name)
+        return OpenRouterProvider(
+            api_key=config.openrouter_api_key or "",
+            model_name=model_name,
+            max_concurrency=config.openrouter_max_concurrency,
+        )
 
     raise ValueError(
         f"backend={backend!r}: vLLM требует вручную созданный движок (GPU) — "
@@ -71,8 +76,14 @@ def build_agent_with_provider(config: AppConfig, llm: LLMProvider) -> ArxivAgent
         ls_client, local_prompts.get("summarization", {}), use_hub=config.use_hub
     )
 
-    search_client = ArxivSearchClient()
-    article_store = SqliteArxivArticleStore(config.cache_db_path, search_client=search_client)
+    # Один RateLimiter на ВСЕ обращения к arXiv (поиск + ar5iv + PDF) — см.
+    # modules/arxiv_source/rate_limit.py про то, почему раздельный троттлинг по классам
+    # запросов не спасает от несогласованного всплеска.
+    rate_limiter = RateLimiter(min_interval_sec=config.arxiv_min_request_interval_sec)
+    search_client = ArxivSearchClient(rate_limiter=rate_limiter, cache_path=config.cache_db_path)
+    article_store = SqliteArxivArticleStore(
+        config.cache_db_path, search_client=search_client, rate_limiter=rate_limiter
+    )
     # Rewriter — той же основной моделью, что отвечает пользователю (в отличие от RAGAS-
     # судьи это не измерение качества, а часть самого инференс-пути: без перевода термина
     # на английский arXiv по русскому запросу физически ничего не найдёт).

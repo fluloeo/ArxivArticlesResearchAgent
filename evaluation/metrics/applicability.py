@@ -12,7 +12,12 @@ _APPLICABLE: Dict[str, Dict[str, Set[str]]] = {
         "map_stage": {"faithfulness", "coverage"},
         "reduce_stage": {"faithfulness", "coverage"},
         "end_to_end": {"faithfulness", "coverage"},
-        "vs_reference": {"coverage"},
+        # faithfulness здесь — согласованность с ЭТАЛОННЫМ ОБЗОРОМ (gemini), а не с
+        # первоисточником (это уже даёт end_to_end): истинное утверждение, которое gemini
+        # просто не упомянул(а), формально засчитается как "неподтверждённое". Полезно как
+        # проверка согласованности между двумя независимыми обзорами, но не путать с
+        # "выдумал ли факты против статьи" — за это отвечает end_to_end.
+        "vs_reference": {"faithfulness", "coverage"},
     },
     "research_step": {
         # coverage здесь условна (только если у кейса есть reference_answer) — это решает

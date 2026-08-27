@@ -13,6 +13,8 @@ NodeVisit: article_chunks/debug_data/final_answer к моменту заверш
 воедино, и это ровно то, что видит конечный пользователь.
 """
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from evaluation.dataset.case import EvalCase, Suite
@@ -121,18 +123,36 @@ class MetricsRunner:
         else:
             logger.warning("MetricsRunner: неизвестный scope=%s для map_reduce_summarize", scope)
 
+    # Чанки map-стадии независимы друг от друга (каждый — свой источник + свой кандидат),
+    # но _compute_pair сама по себе уже отправляет ВНУТРИ себя батч запросов судье
+    # (verdict-проверки по всем claims/points чанка — конкурентно через
+    # OpenRouterProvider._agather_ordered). Без внешнего пула чанки идут строго по одному —
+    # на 50-статейном корпусе с ~20-30 чанками на статью это давало счёт на десятки минут
+    # ЗА СТАТЬЮ (наблюдалось живьём: 2 кейса не укладывались в 12+ минут). Небольшой пул
+    # (не безлимитный — верхний уровень конкурентности у OpenRouterProvider свой семафор на
+    # каждый generate()-вызов, и оба уровня складываются в общее число одновременных HTTP-
+    # запросов к API) прогоняет несколько чанков одновременно поверх этого.
+    _CHUNK_WORKERS = 4
+
     def _run_per_chunk(
         self, chunks: Dict[str, Any], map_summaries: Dict[str, str], metrics: List[str], case: EvalCase, writer: RunWriter
     ) -> None:
         per_metric_scores: Dict[str, List[float]] = {m: [] for m in metrics}
-        for title, chunk in chunks.items():
+        write_lock = threading.Lock()
+
+        def _do_chunk(item):
+            title, chunk = item
             candidate = map_summaries.get(title, "")
             context = chunk.get("main_text", "")
-            results = self._compute_pair(metrics, context=context, candidate=candidate)
-            for result in results:
-                writer.write_metric(case.case_id, _result_row("map_reduce_summarize", "map_stage", result, chunk=title))
-                if result.status == "ok":
-                    per_metric_scores[result.metric].append(result.score)
+            return title, self._compute_pair(metrics, context=context, candidate=candidate)
+
+        with ThreadPoolExecutor(max_workers=self._CHUNK_WORKERS) as pool:
+            for title, results in pool.map(_do_chunk, chunks.items()):
+                with write_lock:
+                    for result in results:
+                        writer.write_metric(case.case_id, _result_row("map_reduce_summarize", "map_stage", result, chunk=title))
+                        if result.status == "ok":
+                            per_metric_scores[result.metric].append(result.score)
         for metric, scores in per_metric_scores.items():
             if scores:
                 writer.write_metric(

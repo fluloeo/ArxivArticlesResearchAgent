@@ -65,17 +65,28 @@ class SummarizationPipeline:
         rate = RateEstimator()
         chunk_summaries: Dict[str, str] = {}
 
-        for i, title in enumerate(titles, 1):
-            conv = self.prompt_resolver.format_chat(
-                self.resolved_prompts["map"], {"title": title, **overlap_dict[title]},
+        map_conversations = [
+            self.prompt_resolver.format_chat(
+                self.resolved_prompts["map"], {"title": t, **overlap_dict[t]},
                 str(self.resolved_prompts.get("system_map", "")),
             )
-            summary = self.provider.generate([conv], map_params)[0]
+            for t in titles
+        ]
+        # generate_as_completed, а не по одному чанку последовательным generate() — иначе
+        # параллельность OpenRouterProvider (см. modules/llm/openrouter_provider.py) не
+        # проявляется вовсе: батч из N однострочных вызовов не даёт провайдеру ни одного
+        # шанса отправить их конкурентно. Порядок готовности не совпадает с порядком
+        # чанков на параллельных бэкендах — chunk_summaries индексируется по title, а не
+        # по порядку yield'а, поэтому reduce ниже собирает их в исходном порядке статьи.
+        done = 0
+        for index, summary in self.provider.generate_as_completed(map_conversations, map_params):
+            title = titles[index]
             chunk_summaries[title] = summary
-            yield ChunkDoneEvent(title=title, summary=summary, index=i, total=n)
+            done += 1
+            yield ChunkDoneEvent(title=title, summary=summary, index=done, total=n)
             yield ProgressEvent(
                 stage="map_reduce_summarize", message=f"Обработан раздел «{title}»",
-                current=i, total=n, elapsed_s=rate.elapsed(), eta_s=rate.eta(i, n),
+                current=done, total=n, elapsed_s=rate.elapsed(), eta_s=rate.eta(done, n),
             )
 
         combined = _combine_for_reduce(titles, chunk_summaries)

@@ -9,6 +9,9 @@ checks (детерминированные проверки), metrics (MetricsRu
 "same as main model" шорткот, самосудейство обесценивает сравнение моделей).
 """
 import logging
+import queue
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -117,6 +120,55 @@ class ExperimentRunner:
             except Exception:
                 logger.exception("Кейс %s упал вне графа (bug в самом харнессе)", case.case_id)
         return outcomes
+
+
+def run_suite_concurrent(
+    runners: List["ExperimentRunner"], suite: Suite, limit: Optional[int] = None
+) -> List[CaseOutcome]:
+    """Параллельная версия run_suite: несколько статей (кейсов) генерируются и судятся
+    ОДНОВРЕМЕННО, а не одна за другой — раньше вся суть параллелизма ограничивалась
+    чанками ВНУТРИ одной статьи (MetricsRunner._run_per_chunk), а сами статьи всё равно
+    шли строго по очереди, отсюда счёт на десятки минут для сколь-нибудь заметной выборки.
+
+    Требует ОТДЕЛЬНОГО ArxivAgent (и значит, отдельного скомпилированного LangGraph-графа)
+    на каждый параллельный воркер — GraphRecorder на время .run() монки-патчит
+    app.nodes[name].bound.func НА САМОМ graph-объекте (см. tracing/recorder.py), и это не
+    потокобезопасно на ОДНОМ разделяемом agent: два конкурентных прогона патчили бы/
+    восстанавливали одни и те же атрибуты друг у друга под ногами. Отсюда пул из N
+    независимых runners (каждый со своим agent), а не N потоков поверх одного runner.
+    Judge/LLMProvider безопасно шарить между воркерами — каждый generate()-вызов создаёт
+    свой event loop и свой AsyncOpenAI-клиент (см. modules/llm/openrouter_provider.py).
+    """
+    cases = suite.cases[:limit] if limit else suite.cases
+    writer = runners[0].writer
+    writer.set_suite_info(path=None, n_cases=len(cases), case_ids=[c.case_id for c in cases])
+
+    pool: "queue.Queue[ExperimentRunner]" = queue.Queue()
+    for r in runners:
+        pool.put(r)
+
+    outcomes: List[CaseOutcome] = []
+    outcomes_lock = threading.Lock()
+    progress = {"done": 0}
+
+    def _work(case: EvalCase) -> None:
+        runner = pool.get()
+        try:
+            outcome = runner.run_case(case, suite)
+        except Exception:
+            logger.exception("Кейс %s упал вне графа (bug в самом харнессе)", case.case_id)
+            outcome = None
+        finally:
+            pool.put(runner)
+        if outcome is not None:
+            with outcomes_lock:
+                outcomes.append(outcome)
+                progress["done"] += 1
+                logger.info("[%d/%d] завершён %s", progress["done"], len(cases), case.case_id)
+
+    with ThreadPoolExecutor(max_workers=len(runners)) as executor:
+        list(executor.map(_work, cases))
+    return outcomes
 
 
 def summarize_outcomes(outcomes: List[CaseOutcome]) -> Dict[str, Any]:

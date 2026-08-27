@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, Iterator, Optional, Tuple
 
 from .arxiv_source.fulltext import fetch_sections
+from .arxiv_source.rate_limit import RateLimiter
 from .arxiv_source.search import ArxivSearchClient
 
 logger = logging.getLogger(__name__)
@@ -39,10 +40,20 @@ class SqliteArxivArticleStore(ArticleStore):
     требовали повторного сетевого похода/парсинга PDF.
     """
 
-    def __init__(self, db_path: str, search_client: Optional[ArxivSearchClient] = None):
+    def __init__(
+        self,
+        db_path: str,
+        search_client: Optional[ArxivSearchClient] = None,
+        rate_limiter: Optional[RateLimiter] = None,
+    ):
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
         self._search_client = search_client or ArxivSearchClient()
+        # Тот же общий лимитер, что у search_client — get_by_id() (поиск метаданных) и
+        # fetch_sections() (ar5iv/PDF) ниже вызываются подряд на промахе кэша; без общего
+        # лимитера это несогласованный всплеск запросов к arXiv (см.
+        # modules/arxiv_source/rate_limit.py).
+        self._rate_limiter = rate_limiter
         self._init_db()
 
     @contextlib.contextmanager
@@ -97,7 +108,7 @@ class SqliteArxivArticleStore(ArticleStore):
 
     def _fetch_and_cache(self, article_id: str) -> Optional[ArticleRecord]:
         title, pdf_url = self._resolve_metadata(article_id)
-        sections, source = fetch_sections(article_id, pdf_url=pdf_url)
+        sections, source = fetch_sections(article_id, pdf_url=pdf_url, rate_limiter=self._rate_limiter)
         if not sections:
             logger.error("Could not fetch full text for arXiv:%s (ar5iv and PDF both failed)", article_id)
             return None

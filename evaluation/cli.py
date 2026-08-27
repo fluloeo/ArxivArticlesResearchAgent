@@ -22,7 +22,7 @@ from evaluation.metrics.cache import JudgeCache
 from evaluation.metrics.judge import JudgeConfig, build_judge
 from evaluation.metrics_runner import MetricsRunner
 from evaluation.runlog.run_writer import RunWriter
-from evaluation.runner import ExperimentRunner, summarize_outcomes
+from evaluation.runner import ExperimentRunner, run_suite_concurrent, summarize_outcomes
 from evaluation.tracing.provider_wrapper import RecordingProvider
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
     config = build_app_config(llm_backend=args.llm_backend, model=args.model)
 
     llm = build_llm_provider(config, record_llm_io=args.record_llm_io)
-    agent = build_agent_for_eval(config, llm, offline=args.offline, use_rewriter=not args.no_rewriter)
+    # --case-workers>1: N независимых ArxivAgent (значит, N скомпилированных LangGraph-
+    # графов) на общем llm/config — сам провайдер потокобезопасен (см. run_suite_concurrent
+    # docstring), а вот граф-объект, который GraphRecorder монки-патчит на время .run(), нет.
+    n_agents = max(1, args.case_workers)
+    agents = [
+        build_agent_for_eval(config, llm, offline=args.offline, use_rewriter=not args.no_rewriter)
+        for _ in range(n_agents)
+    ]
+    agent = agents[0]
 
     context = CheckContext(tokenizer=agent.processor.tokenizer, app_config=config, node_gen=config.node_gen)
 
@@ -89,11 +97,17 @@ def _cmd_run(args: argparse.Namespace) -> int:
             suite.name, list(suite.metrics.keys()),
         )
 
-    runner = ExperimentRunner(agent, context, writer, recording_provider=recording_provider, metrics_runner=metrics_runner)
+    runners = [
+        ExperimentRunner(a, context, writer, recording_provider=recording_provider, metrics_runner=metrics_runner)
+        for a in agents
+    ]
 
     status = "completed"
     try:
-        outcomes = runner.run_suite(suite, limit=args.limit)
+        if n_agents > 1:
+            outcomes = run_suite_concurrent(runners, suite, limit=args.limit)
+        else:
+            outcomes = runners[0].run_suite(suite, limit=args.limit)
         summary = summarize_outcomes(outcomes)
     except Exception:
         logger.exception("Прогон сьюта %s упал", suite.name)
@@ -160,6 +174,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Модель судьи (faithfulness/coverage/answer_relevancy). Без неё считаются только checks.",
     )
     p_run.add_argument("--judge-backend", choices=["mlx", "openrouter"], default="mlx")
+    p_run.add_argument(
+        "--case-workers", type=int, default=1,
+        help="Сколько статей/кейсов гонять ОДНОВРЕМЕННО (не только чанки внутри одной статьи). "
+        "Требует отдельный ArxivAgent на воркер — с mlx-бэкендом (один физический воркер модели) "
+        "бессмысленно и вероятно опасно, имеет смысл только с --llm-backend openrouter.",
+    )
     p_run.set_defaults(func=_cmd_run)
 
     p_list = sub.add_parser("list-suites", help="Перечислить доступные сьюты")

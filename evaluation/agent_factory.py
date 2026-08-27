@@ -48,9 +48,16 @@ def _build_collaborators(config: AppConfig, llm: LLMProvider, offline: bool, use
         search_client: Any = FrozenSearchClient(article_index=sample)
     else:
         from modules.article_store import SqliteArxivArticleStore
+        from modules.arxiv_source.rate_limit import RateLimiter
 
-        search_client = ArxivSearchClient()
-        article_store = SqliteArxivArticleStore(config.cache_db_path, search_client=search_client)
+        # Тот же общий лимитер на поиск+ar5iv+PDF, что и в проде (modules.bootstrap) —
+        # research_qa бьёт по живому arXiv (см. evaluation/suites/research_qa.yaml) и
+        # без него подвержен тому же несогласованному всплеску запросов.
+        rate_limiter = RateLimiter(min_interval_sec=config.arxiv_min_request_interval_sec)
+        search_client = ArxivSearchClient(rate_limiter=rate_limiter, cache_path=config.cache_db_path)
+        article_store = SqliteArxivArticleStore(
+            config.cache_db_path, search_client=search_client, rate_limiter=rate_limiter
+        )
 
     rewriter = None
     if use_rewriter:

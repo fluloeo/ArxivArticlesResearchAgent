@@ -1,16 +1,29 @@
 import logging
+import random
 import re
+import time
 from typing import Dict, List, Optional, Tuple
 
 import pymupdf as fitz
 import requests
 from bs4 import BeautifulSoup
 
+from .rate_limit import RateLimiter
+
 logger = logging.getLogger(__name__)
 
 _AR5IV_URL = "https://ar5iv.labs.arxiv.org/html/{arxiv_id}"
 _USER_AGENT = "ArxivArticlesResearchAgent/1.0 (mailto:research-agent@example.com)"
 _MIN_AR5IV_CHARS = 500
+
+# Та же схема ретраев, что modules.arxiv_source.search — раньше здесь не было ни одной
+# попытки повтора: единичный сбой ar5iv (тот же хост, что и Atom API, — под общим
+# троттлингом/капризами arXiv) сразу проваливался в PDF-фоллбек, а сбой PDF-запроса —
+# сразу в пустой результат.
+_RETRIES = 3
+_BACKOFF_BASE_SEC = 2.0
+_BACKOFF_MAX_SEC = 20.0
+_BACKOFF_JITTER = 0.25
 
 _HEADING_NUMBER_RE = re.compile(r"^\d+(\.\d+)*\.?\s+")
 _PDF_HEADING_RE = re.compile(
@@ -62,9 +75,59 @@ def _parse_ar5iv_html(html: str) -> Dict[str, str]:
     return {title: "\n\n".join(parts) for title, parts in sections.items() if parts}
 
 
-def _fetch_pdf_text(pdf_url: str, timeout: float) -> str:
-    response = requests.get(pdf_url, timeout=timeout, headers={"User-Agent": _USER_AGENT})
-    response.raise_for_status()
+def _retry_after_seconds(exc: requests.RequestException) -> Optional[float]:
+    response = getattr(exc, "response", None)
+    if response is None:
+        return None
+    value = response.headers.get("Retry-After")
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _get_with_retry(
+    url: str, timeout: float, rate_limiter: Optional[RateLimiter], accept_404: bool = False
+) -> Optional[requests.Response]:
+    """GET с общим rate limiter'ом (тем же, что ArxivSearchClient — см.
+    modules/arxiv_source/rate_limit.py) и ретраями на 429/5xx/таймауты. 404 (статья
+    существует, но, например, ar5iv её ещё не отрендерил) не ретраится — не наша ошибка,
+    но и не временный сбой, следующая попытка даст тот же результат."""
+    for attempt in range(1, _RETRIES + 1):
+        if rate_limiter is not None:
+            rate_limiter.wait()
+        try:
+            response = requests.get(url, timeout=timeout, headers={"User-Agent": _USER_AGENT})
+            if accept_404 and response.status_code == 404:
+                return response
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            if status is not None and 400 <= status < 500 and status != 429:
+                return None
+            if attempt == _RETRIES:
+                logger.warning("Request to %s failed after %d attempts: %s", url, attempt, e)
+                return None
+            retry_after = _retry_after_seconds(e)
+            if retry_after is not None:
+                backoff = retry_after
+            else:
+                backoff = min(_BACKOFF_BASE_SEC * (2 ** (attempt - 1)), _BACKOFF_MAX_SEC)
+                backoff += random.uniform(0, backoff * _BACKOFF_JITTER)
+            logger.warning(
+                "Request to %s failed (attempt %d/%d, status=%s), retrying in %.1fs", url, attempt, _RETRIES, status, backoff
+            )
+            time.sleep(backoff)
+    return None
+
+
+def _fetch_pdf_text(pdf_url: str, timeout: float, rate_limiter: Optional[RateLimiter]) -> str:
+    response = _get_with_retry(pdf_url, timeout, rate_limiter)
+    if response is None:
+        return ""
     with fitz.open(stream=response.content, filetype="pdf") as doc:
         return "\n".join(page.get_text() for page in doc)
 
@@ -93,27 +156,32 @@ def _split_pdf_sections(text: str) -> Dict[str, str]:
     return sections or ({"Main": stripped} if stripped else {})
 
 
-def fetch_sections(arxiv_id: str, pdf_url: Optional[str] = None, timeout: float = 20.0) -> Tuple[Dict[str, str], str]:
+def fetch_sections(
+    arxiv_id: str,
+    pdf_url: Optional[str] = None,
+    timeout: float = 20.0,
+    rate_limiter: Optional[RateLimiter] = None,
+) -> Tuple[Dict[str, str], str]:
     """Достаёт полный текст статьи по arXiv ID и делит его на секции.
 
     Порядок попыток: ar5iv (LaTeXML HTML, точная структура секций) -> PDF-текст +
     regex-эвристика заголовков (грубее, но работает почти всегда). Возвращает
     (sections, source), где source в {"ar5iv", "pdf", "none"} — используется для логирования.
+
+    `rate_limiter` — тот же общий лимитер, что у ArxivSearchClient (передаётся из
+    modules.bootstrap): ar5iv и arxiv.org/pdf — та же инфраструктура arXiv, что и Atom API
+    поиска, и без единого троттлинга на все три эти запросы дают несогласованный всплеск,
+    который arXiv в какой-то момент начинает откровенно резать (см. docstring rate_limit.py).
     """
-    try:
-        response = requests.get(
-            _AR5IV_URL.format(arxiv_id=arxiv_id), timeout=timeout, headers={"User-Agent": _USER_AGENT}
-        )
-        if response.status_code == 200:
-            sections = _parse_ar5iv_html(response.text)
-            if sections and sum(len(v) for v in sections.values()) >= _MIN_AR5IV_CHARS:
-                return sections, "ar5iv"
-    except requests.RequestException:
-        logger.warning("ar5iv fetch failed for %s", arxiv_id, exc_info=True)
+    response = _get_with_retry(_AR5IV_URL.format(arxiv_id=arxiv_id), timeout, rate_limiter, accept_404=True)
+    if response is not None and response.status_code == 200:
+        sections = _parse_ar5iv_html(response.text)
+        if sections and sum(len(v) for v in sections.values()) >= _MIN_AR5IV_CHARS:
+            return sections, "ar5iv"
 
     try:
-        text = _fetch_pdf_text(pdf_url or f"https://arxiv.org/pdf/{arxiv_id}", timeout)
-        sections = _split_pdf_sections(text)
+        text = _fetch_pdf_text(pdf_url or f"https://arxiv.org/pdf/{arxiv_id}", timeout, rate_limiter)
+        sections = _split_pdf_sections(text) if text else {}
         if sections:
             return sections, "pdf"
     except Exception:

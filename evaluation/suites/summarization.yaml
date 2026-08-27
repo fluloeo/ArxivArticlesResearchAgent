@@ -11,6 +11,13 @@ metrics:
     map_stage: [faithfulness, coverage]
     reduce_stage: [faithfulness, coverage]
     end_to_end: [faithfulness, coverage]
+    # faithfulness здесь технически поддержана (applicability.py), но сознательно не
+    # запрашивается по умолчанию — она мерит согласованность с ЭТАЛОННЫМ ОБЗОРОМ
+    # gemini, а не с первоисточником (это уже даёт end_to_end): правда, которую gemini
+    # просто не упомянул(а), формально засчитается как "неподтверждённая". Актуальный
+    # baseline "насколько faithful сам эталон gemini против источника" считается отдельным
+    # standalone-скриптом (см. README, раздел «Метрики суммаризации») без завязки на
+    # генерацию нашей модели — так дешевле для точечных догонов метрик.
     vs_reference: [coverage]
 
 cases_from:

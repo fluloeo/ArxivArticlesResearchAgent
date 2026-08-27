@@ -1,7 +1,11 @@
+import hashlib
+import json
 import logging
-import threading
+import random
+import sqlite3
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from xml.etree import ElementTree
 
@@ -12,19 +16,35 @@ from .identifiers import extract_arxiv_id, extract_id_from_atom_url  # noqa: F40
 # обратной совместимости: modules/agent.py исторически импортировал его отсюда, теперь
 # переключён на modules.arxiv_source.identifiers напрямую, но другой код мог остаться
 # на старом пути импорта.
+from .rate_limit import RateLimiter
 
 logger = logging.getLogger(__name__)
 
 _ATOM_NS = "{http://www.w3.org/2005/Atom}"
 _ARXIV_API_URL = "http://export.arxiv.org/api/query"
 _USER_AGENT = "ArxivArticlesResearchAgent/1.0 (mailto:research-agent@example.com)"
+
+# 2 попытки с экспоненциальным backoff — короткий троттлинг-эпизод переживается за
+# несколько секунд без превращения в многоминутное ожидание. Раньше было 4 попытки на
+# КАЖДЫЙ из до 6 уровней лестницы query_rewriter — при устойчивом (не кратковременном)
+# отказе export.arxiv.org (наблюдалось живьём: сам API-хост не отвечает даже на голый
+# curl извне приложения, пока обычный arxiv.org отвечает нормально — похоже на IP-level
+# пенальти, а не на обычный 429-всплеск) это давало ~70с на уровень и 5-7 минут итого,
+# выглядящих как зависший UI. Лестница сама по себе даёт избыточность через РАЗНЫЕ
+# запросы — незачем ещё и повторять один и тот же запрос 4 раза. При 429 с заголовком
+# Retry-After он в приоритете над расчётным backoff.
 _RETRIES = 2
-_RETRY_BACKOFF_SEC = 5.0
-# arXiv в условиях использования API просит не чаще одного запроса в 3 секунды.
-# search() делает ДВА запроса подряд (ti:"..." + fallback all:...), и без паузы между
-# ними API отвечал 429 Too Many Requests, а следом переставал отвечать вовсе — снаружи
-# это выглядело как «ReadTimeout» и приводило к ответу «статей по теме не найдено».
-_MIN_REQUEST_INTERVAL_SEC = 3.0
+_BACKOFF_BASE_SEC = 2.0
+_BACKOFF_MAX_SEC = 10.0
+_BACKOFF_JITTER = 0.25
+
+# Кэш результатов поиска — лестница query_rewriter (modules.query_rewriter) на один
+# user-facing поиск может сделать до 6 последовательных запросов (title_phrase ->
+# and_filtered -> and_unfiltered -> or_broadened -> all_terms -> raw_fallback), и без
+# кэша каждый повтор того же search_query (тот же research-цикл, повторный запрос
+# пользователя, прогон харнесса) платит за них снова. TTL умеренный — arXiv индексирует
+# новые статьи не мгновенно, потеря нескольких часов свежести не критична здесь.
+_SEARCH_CACHE_TTL_SEC = 6 * 3600
 
 _MAX_TITLE_WORDS = 12
 _QUESTION_WORDS = {
@@ -50,6 +70,19 @@ def _looks_like_title(query: str) -> bool:
     return words[0].strip('«"\'').lower() not in _QUESTION_WORDS
 
 
+def _retry_after_seconds(exc: requests.RequestException) -> Optional[float]:
+    response = getattr(exc, "response", None)
+    if response is None:
+        return None
+    value = response.headers.get("Retry-After")
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 @dataclass
 class ArxivPaperMeta:
     arxiv_id: str
@@ -63,32 +96,75 @@ class ArxivSearchClient:
     что раньше давал retrieval по LanceDB. Без стороннего пакета `arxiv`,
     только `requests` + stdlib XML."""
 
-    def __init__(self, timeout: float = 15.0):
+    def __init__(
+        self,
+        timeout: float = 10.0,
+        rate_limiter: Optional[RateLimiter] = None,
+        cache_path: Optional[str] = None,
+        cache_ttl_sec: float = _SEARCH_CACHE_TTL_SEC,
+    ):
         self.timeout = timeout
         # Session, а не голый requests.get: search() делает до двух запросов подряд
         # (ti:"..." и fallback all:...), и без пула соединений каждый из них платил
         # за отдельный TCP+TLS-хендшейк к export.arxiv.org.
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": _USER_AGENT})
-        self._rate_limit_lock = threading.Lock()
-        self._last_request_ts = 0.0
+        # Свой RateLimiter, если не передан общий, — сохраняет прежнее поведение при
+        # прямом создании клиента (тесты, ноутбуки); в проде modules.bootstrap передаёт
+        # ОДИН общий лимитер и сюда, и в fetch_sections (см. modules/arxiv_source/rate_limit.py).
+        self._rate_limiter = rate_limiter or RateLimiter()
+        self._cache_path = cache_path
+        self._cache_ttl_sec = cache_ttl_sec
+        if self._cache_path:
+            self._init_cache()
 
-    def _throttle(self) -> None:
-        """Выдерживает минимальный интервал между обращениями к arXiv API.
-        Лок держится и на время сна намеренно: это и есть сериализация запросов,
-        нужная чтобы не превышать лимит при параллельных gRPC-вызовах."""
-        with self._rate_limit_lock:
-            wait = _MIN_REQUEST_INTERVAL_SEC - (time.monotonic() - self._last_request_ts)
-            if wait > 0:
-                time.sleep(wait)
-            self._last_request_ts = time.monotonic()
+    def _init_cache(self) -> None:
+        Path(self._cache_path).parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(self._cache_path) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS search_cache "
+                "(query_hash TEXT PRIMARY KEY, search_query TEXT, results_json TEXT, fetched_at REAL)"
+            )
+
+    @staticmethod
+    def _cache_key(search_query: str, max_results: int) -> str:
+        return hashlib.sha256(f"{search_query}\x00{max_results}".encode("utf-8")).hexdigest()
+
+    def _cache_get(self, cache_key: str) -> Optional[List[ArxivPaperMeta]]:
+        if not self._cache_path:
+            return None
+        with sqlite3.connect(self._cache_path) as conn:
+            row = conn.execute(
+                "SELECT results_json, fetched_at FROM search_cache WHERE query_hash = ?", (cache_key,)
+            ).fetchone()
+        if row is None:
+            return None
+        results_json, fetched_at = row
+        if time.time() - fetched_at > self._cache_ttl_sec:
+            return None
+        try:
+            return [ArxivPaperMeta(**d) for d in json.loads(results_json)]
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return None
+
+    def _cache_put(self, cache_key: str, search_query: str, results: List[ArxivPaperMeta]) -> None:
+        if not self._cache_path:
+            return
+        payload = json.dumps([asdict(r) for r in results], ensure_ascii=False)
+        with sqlite3.connect(self._cache_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO search_cache (query_hash, search_query, results_json, fetched_at) "
+                "VALUES (?, ?, ?, ?)",
+                (cache_key, search_query, payload, time.time()),
+            )
+            conn.commit()
 
     def _get(self, params: Dict[str, Any]) -> Optional[str]:
-        """GET к arXiv API с троттлингом и ретраями. Публичный API arXiv отдаёт 429/таймауты
-        под нагрузкой; без ретрая единичный сбой выглядел для агента как «ничего не найдено»,
-        и он честно отвечал пользователю, что статей по теме нет."""
+        """GET к arXiv API с общим троттлингом и ретраями. Публичный API arXiv отдаёт
+        429/таймауты под нагрузкой; без ретрая единичный сбой выглядел для агента как
+        «ничего не найдено», и он честно отвечал пользователю, что статей по теме нет."""
         for attempt in range(1, _RETRIES + 1):
-            self._throttle()
+            self._rate_limiter.wait()
             try:
                 response = self._session.get(_ARXIV_API_URL, params=params, timeout=self.timeout)
                 response.raise_for_status()
@@ -103,8 +179,17 @@ class ArxivSearchClient:
                 if attempt == _RETRIES:
                     logger.error("arXiv API request failed after %d attempts (%s): %s", attempt, params, e)
                     return None
-                logger.warning("arXiv API request failed (attempt %d/%d), retrying: %s", attempt, _RETRIES, e)
-                time.sleep(_RETRY_BACKOFF_SEC)
+                retry_after = _retry_after_seconds(e)
+                if retry_after is not None:
+                    backoff = retry_after
+                else:
+                    backoff = min(_BACKOFF_BASE_SEC * (2 ** (attempt - 1)), _BACKOFF_MAX_SEC)
+                    backoff += random.uniform(0, backoff * _BACKOFF_JITTER)
+                logger.warning(
+                    "arXiv API request failed (attempt %d/%d, status=%s), retrying in %.1fs: %s",
+                    attempt, _RETRIES, status, backoff, e,
+                )
+                time.sleep(backoff)
         return None
 
     def search(self, query: str, max_results: int = 5) -> List[ArxivPaperMeta]:
@@ -128,6 +213,12 @@ class ArxivSearchClient:
         return self._run_query(search_query, max_results)
 
     def _run_query(self, search_query: str, max_results: int) -> List[ArxivPaperMeta]:
+        cache_key = self._cache_key(search_query, max_results)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            logger.debug("arXiv search cache hit: %r", search_query)
+            return cached
+
         xml_text = self._get(
             {
                 "search_query": search_query,
@@ -137,7 +228,11 @@ class ArxivSearchClient:
                 "sortOrder": "descending",
             }
         )
-        return self._parse_feed(xml_text) if xml_text else []
+        results = self._parse_feed(xml_text) if xml_text else []
+        # Кэшируем и пустой результат: та же пустая ступень лестницы запросов иначе бьёт
+        # по сети заново на каждый повтор похожего запроса в рамках TTL.
+        self._cache_put(cache_key, search_query, results)
+        return results
 
     def get_by_id(self, arxiv_id: str) -> Optional[ArxivPaperMeta]:
         """Точечный lookup метаданных по arXiv ID (для полнотекстового кэша),
